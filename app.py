@@ -2,12 +2,13 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
+from datetime import datetime, timedelta
 
 # ------------------------------------------------------------------
 # PAGE CONFIGURATION
 # ------------------------------------------------------------------
 st.set_page_config(
-    page_title="PRO TERMINAL v6 | Zero-Hero Engine",
+    page_title="PRO TERMINAL v6.1 | Zero-Hero Engine",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -110,15 +111,33 @@ st.markdown("""
         border-radius: 6px;
         margin-top: 5px;
     }
+    
+    .action-guidance-box {
+        background: #161B22;
+        border: 1px solid #30363D;
+        border-radius: 12px;
+        padding: 15px;
+        margin-top: 15px;
+    }
 </style>
 """, unsafe_allow_html=True)
+
+# ------------------------------------------------------------------
+# DYNAMIC EXPIRY CALCULATOR (2026 Rules: NSE=Tuesday, BSE/Sensex=Thursday)
+# ------------------------------------------------------------------
+def get_next_weekday(weekday_idx):
+    today = datetime.now()
+    days_ahead = weekday_idx - today.weekday()
+    if days_ahead <= 0:  
+        days_ahead += 7
+    return today + timedelta(days=days_ahead)
 
 # ------------------------------------------------------------------
 # INDEX SELECTOR & TITLE BAR
 # ------------------------------------------------------------------
 title_col, index_col = st.columns([2, 1])
 with title_col:
-    st.title("⚡ PRO TERMINAL v6")
+    st.title("⚡ PRO TERMINAL v6.1")
 with index_col:
     selected_index = st.selectbox(
         "🎯 Select Target Index:",
@@ -126,19 +145,25 @@ with index_col:
         index=0
     )
 
-# Extract lot size dynamically
+# Extract lot size dynamically and determine expiry date rule
 if "BANK NIFTY" in selected_index:
     lot_size = 15
     default_strike_name = "BANKNIFTY 52000 CE"
+    expiry_date = get_next_weekday(1).strftime("%d %b 2026 (Tuesday)")  # NSE Tuesday expiry
 elif "FINNIFTY" in selected_index:
     lot_size = 25
     default_strike_name = "FINNIFTY 23500 CE"
+    expiry_date = get_next_weekday(1).strftime("%d %b 2026 (Tuesday)")
 elif "SENSEX" in selected_index:
     lot_size = 10
     default_strike_name = "SENSEX 80000 CE"
+    expiry_date = get_next_weekday(3).strftime("%d %b 2026 (Thursday)")  # BSE Thursday expiry
 else:
     lot_size = 65
     default_strike_name = "NIFTY 24400 CE"
+    expiry_date = get_next_weekday(1).strftime("%d %b 2026 (Tuesday)")
+
+st.info(f"📅 **Active Expiry Date for {selected_index.split(' ')[0]}:** `{expiry_date}`")
 
 # ------------------------------------------------------------------
 # 1. GLOBAL MARKET MONITOR (TOP TICKER RIBBON)
@@ -174,7 +199,7 @@ col_left, col_right = st.columns([1.3, 1])
 
 with col_left:
     analysis_mode = st.radio(
-        " Choose Engine Mode:",
+        "⚙️ Choose Engine Mode:",
         [
             "🤖 Auto-Signal Engine (Global + OI Writers)", 
             "✍️ Custom Strike & Budget Mode",
@@ -196,36 +221,36 @@ with col_left:
         rr_ratio = reward_points / risk_points
         
         st.markdown(f"""
-            <div class="signal-card-bull">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                    <span class="badge-giant badge-call">🟢 BUY CALL</span>
-                    <span style="color: #8B949E; font-weight: 600; font-size: 12px;">Risk-Reward Ratio: <b style="color:#2EA043;">1:{rr_ratio:.1f}</b></span>
-                </div>
-                
-                <h1 style="font-size: 30px; font-weight: 900; color: #FFFFFF; margin: 0 0 4px 0;">{selected_index.split(' ')[0]} 24300 CE</h1>
-                <p style="color: #2EA043; font-size: 13px; font-weight: 700; margin-bottom: 16px;">
-                    ⚡ Triggered by: Heavy Put Writing @ 24300 + VWAP Breakout
-                </p>
-                
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
-                    <div class="metric-subcard">
-                        <div style="font-size: 11px; color: #8B949E; font-weight:700;">STOP LOSS</div>
-                        <div style="font-size: 20px; font-weight: 900; color: #F85149;">{sl:,.2f}</div>
-                        <div style="font-size: 11px; color: #F85149; font-weight:700;">-{risk_points:.0f} Pts</div>
-                    </div>
-                    <div class="metric-subcard" style="border: 1px solid #58A6FF;">
-                        <div style="font-size: 11px; color: #58A6FF; font-weight:700;">ENTRY PRICE</div>
-                        <div style="font-size: 20px; font-weight: 900; color: #FFFFFF;">{entry:,.2f}</div>
-                        <div style="font-size: 11px; color: #8B949E; font-weight:700;">Base</div>
-                    </div>
-                    <div class="metric-subcard">
-                        <div style="font-size: 11px; color: #8B949E; font-weight:700;">TARGET</div>
-                        <div style="font-size: 20px; font-weight: 900; color: #2EA043;">{target:,.2f}</div>
-                        <div style="font-size: 11px; color: #2EA043; font-weight:700;">+{reward_points:.0f} Pts</div>
-                    </div>
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
+<div class="signal-card-bull">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <span class="badge-giant badge-call">🟢 BUY CALL</span>
+        <span style="color: #8B949E; font-weight: 600; font-size: 12px;">Risk-Reward Ratio: <b style="color:#2EA043;">1:{rr_ratio:.1f}</b></span>
+    </div>
+    
+    <h1 style="font-size: 30px; font-weight: 900; color: #FFFFFF; margin: 0 0 4px 0;">{selected_index.split(' ')[0]} 24300 CE</h1>
+    <p style="color: #2EA043; font-size: 13px; font-weight: 700; margin-bottom: 16px;">
+        ⚡ Triggered by: Heavy Put Writing @ 24300 + VWAP Breakout
+    </p>
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+        <div class="metric-subcard">
+            <div style="font-size: 11px; color: #8B949E; font-weight:700;">STOP LOSS</div>
+            <div style="font-size: 20px; font-weight: 900; color: #F85149;">{sl:,.2f}</div>
+            <div style="font-size: 11px; color: #F85149; font-weight:700;">-{risk_points:.0f} Pts</div>
+        </div>
+        <div class="metric-subcard" style="border: 1px solid #58A6FF;">
+            <div style="font-size: 11px; color: #58A6FF; font-weight:700;">ENTRY PRICE</div>
+            <div style="font-size: 20px; font-weight: 900; color: #FFFFFF;">{entry:,.2f}</div>
+            <div style="font-size: 11px; color: #8B949E; font-weight:700;">Base</div>
+        </div>
+        <div class="metric-subcard">
+            <div style="font-size: 11px; color: #8B949E; font-weight:700;">TARGET</div>
+            <div style="font-size: 20px; font-weight: 900; color: #2EA043;">{target:,.2f}</div>
+            <div style="font-size: 11px; color: #2EA043; font-weight:700;">+{reward_points:.0f} Pts</div>
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
     # ------------------------------------------------------------------
     # MODE 2: CUSTOM STRIKE & BUDGET MODE
@@ -254,36 +279,36 @@ with col_left:
         rr_custom = custom_target_pts / custom_sl_pts if custom_sl_pts > 0 else 0.0
 
         st.markdown(f"""
-            <div class="signal-card-custom">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                    <span class="badge-giant badge-custom">✍️ CUSTOM STRIKE ANALYZER</span>
-                    <span style="color: #58A6FF; font-weight: 700; font-size: 12px;">Risk-Reward: <b>1:{rr_custom:.1f}</b></span>
-                </div>
-                
-                <h1 style="font-size: 28px; font-weight: 900; color: #FFFFFF; margin: 0 0 4px 0;">{custom_strike}</h1>
-                <p style="color: #8B949E; font-size: 12px; font-weight: 600; margin-bottom: 14px;">
-                    Cost / Lot: ₹{cost_per_lot:,.2f} | Affordable: <b style="color:#58A6FF;">{affordable_lots} Lot(s) ({total_qty} Qty)</b> | Total Capital: <b>₹{total_investment:,.2f}</b>
-                </p>
-                
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
-                    <div class="metric-subcard">
-                        <div style="font-size: 11px; color: #8B949E; font-weight:700;">MAX LOSS (RUPEES)</div>
-                        <div style="font-size: 20px; font-weight: 900; color: #F85149;">₹{max_rupee_loss:,.2f}</div>
-                        <div style="font-size: 11px; color: #F85149; font-weight:700;">SL @ ₹{custom_entry - custom_sl_pts:.2f}</div>
-                    </div>
-                    <div class="metric-subcard" style="border: 1px solid #58A6FF;">
-                        <div style="font-size: 11px; color: #58A6FF; font-weight:700;">BUY PREMIUM</div>
-                        <div style="font-size: 20px; font-weight: 900; color: #FFFFFF;">₹{custom_entry:.2f}</div>
-                        <div style="font-size: 11px; color: #8B949E; font-weight:700;">Entry</div>
-                    </div>
-                    <div class="metric-subcard">
-                        <div style="font-size: 11px; color: #8B949E; font-weight:700;">MAX PROFIT (RUPEES)</div>
-                        <div style="font-size: 20px; font-weight: 900; color: #2EA043;">₹{max_rupee_profit:,.2f}</div>
-                        <div style="font-size: 11px; color: #2EA043; font-weight:700;">Target @ ₹{custom_entry + custom_target_pts:.2f}</div>
-                    </div>
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
+<div class="signal-card-custom">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <span class="badge-giant badge-custom">✍️ CUSTOM STRIKE ANALYZER</span>
+        <span style="color: #58A6FF; font-weight: 700; font-size: 12px;">Risk-Reward: <b>1:{rr_custom:.1f}</b></span>
+    </div>
+    
+    <h1 style="font-size: 28px; font-weight: 900; color: #FFFFFF; margin: 0 0 4px 0;">{custom_strike}</h1>
+    <p style="color: #8B949E; font-size: 12px; font-weight: 600; margin-bottom: 14px;">
+        Cost / Lot: ₹{cost_per_lot:,.2f} | Affordable: <b style="color:#58A6FF;">{affordable_lots} Lot(s) ({total_qty} Qty)</b> | Total Capital: <b>₹{total_investment:,.2f}</b>
+    </p>
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+        <div class="metric-subcard">
+            <div style="font-size: 11px; color: #8B949E; font-weight:700;">MAX LOSS (RUPEES)</div>
+            <div style="font-size: 20px; font-weight: 900; color: #F85149;">₹{max_rupee_loss:,.2f}</div>
+            <div style="font-size: 11px; color: #F85149; font-weight:700;">SL @ ₹{custom_entry - custom_sl_pts:.2f}</div>
+        </div>
+        <div class="metric-subcard" style="border: 1px solid #58A6FF;">
+            <div style="font-size: 11px; color: #58A6FF; font-weight:700;">BUY PREMIUM</div>
+            <div style="font-size: 20px; font-weight: 900; color: #FFFFFF;">₹{custom_entry:.2f}</div>
+            <div style="font-size: 11px; color: #8B949E; font-weight:700;">Entry</div>
+        </div>
+        <div class="metric-subcard">
+            <div style="font-size: 11px; color: #8B949E; font-weight:700;">MAX PROFIT (RUPEES)</div>
+            <div style="font-size: 20px; font-weight: 900; color: #2EA043;">₹{max_rupee_profit:,.2f}</div>
+            <div style="font-size: 11px; color: #2EA043; font-weight:700;">Target @ ₹{custom_entry + custom_target_pts:.2f}</div>
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
     # ------------------------------------------------------------------
     # MODE 3: EXPIRY DAY ZERO-HERO ENGINE (1:30 PM+ GAMMA BLAST)
@@ -299,7 +324,6 @@ with col_left:
         with zh_col3:
             target_multiplier = st.selectbox("Target Multiplier (Reward)", ["3x (₹45)", "4x (₹60)", "5x (₹75)"], index=2)
 
-        # Zero-Hero Logic
         cost_per_lot = hero_premium * lot_size
         affordable_lots = int(hero_budget // cost_per_lot) if cost_per_lot > 0 else 0
         total_qty = affordable_lots * lot_size
@@ -312,46 +336,46 @@ with col_left:
         rr_hero_ratio = mult_val - 1
 
         st.markdown(f"""
-            <div class="signal-card-hero">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                    <span class="badge-giant badge-hero">🔥 EXPIRY ZERO-HERO SIGNAL</span>
-                    <span style="color: #D29922; font-weight: 700; font-size: 12px;">Risk-Reward Ratio: <b>1:{rr_hero_ratio:.0f}</b></span>
-                </div>
-                
-                <h1 style="font-size: 28px; font-weight: 900; color: #FFFFFF; margin: 0 0 4px 0;">{selected_index.split(' ')[0]} 24450 CE (OTM)</h1>
-                <p style="color: #D29922; font-size: 12px; font-weight: 700; margin-bottom: 14px;">
-                    ⚡ Gamma Trigger: Call Writers Panic (Short Covering) + 1:30 PM Breakout
-                </p>
-                <p style="color: #8B949E; font-size: 12px; font-weight: 600; margin-bottom: 14px;">
-                    Affordable: <b style="color:#D29922;">{affordable_lots} Lot(s) ({total_qty} Qty)</b> | Total Risk (Spent Cash): <b>₹{actual_investment:,.2f}</b>
-                </p>
-                
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
-                    <div class="metric-subcard">
-                        <div style="font-size: 11px; color: #8B949E; font-weight:700;">STOP LOSS (TOTAL RISK)</div>
-                        <div style="font-size: 20px; font-weight: 900; color: #F85149;">₹0.00</div>
-                        <div style="font-size: 11px; color: #F85149; font-weight:700;">Max Loss: -₹{max_hero_loss:,.2f}</div>
-                    </div>
-                    <div class="metric-subcard" style="border: 1px solid #D29922;">
-                        <div style="font-size: 11px; color: #D29922; font-weight:700;">BUY PREMIUM</div>
-                        <div style="font-size: 20px; font-weight: 900; color: #FFFFFF;">₹{hero_premium:.2f}</div>
-                        <div style="font-size: 11px; color: #8B949E; font-weight:700;">Entry</div>
-                    </div>
-                    <div class="metric-subcard">
-                        <div style="font-size: 11px; color: #8B949E; font-weight:700;">TARGET ({target_multiplier})</div>
-                        <div style="font-size: 20px; font-weight: 900; color: #2EA043;">₹{target_price:.2f}</div>
-                        <div style="font-size: 11px; color: #2EA043; font-weight:700;">Profit: +₹{max_hero_profit:,.2f}</div>
-                    </div>
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
+<div class="signal-card-hero">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <span class="badge-giant badge-hero">🔥 EXPIRY ZERO-HERO SIGNAL</span>
+        <span style="color: #D29922; font-weight: 700; font-size: 12px;">Risk-Reward Ratio: <b>1:{rr_hero_ratio:.0f}</b></span>
+    </div>
+    
+    <h1 style="font-size: 28px; font-weight: 900; color: #FFFFFF; margin: 0 0 4px 0;">{selected_index.split(' ')[0]} 24450 CE (OTM)</h1>
+    <p style="color: #D29922; font-size: 12px; font-weight: 700; margin-bottom: 14px;">
+        ⚡ Gamma Trigger: Call Writers Panic (Short Covering) + 1:30 PM Breakout
+    </p>
+    <p style="color: #8B949E; font-size: 12px; font-weight: 600; margin-bottom: 14px;">
+        Affordable: <b style="color:#D29922;">{affordable_lots} Lot(s) ({total_qty} Qty)</b> | Total Risk (Spent Cash): <b>₹{actual_investment:,.2f}</b>
+    </p>
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+        <div class="metric-subcard">
+            <div style="font-size: 11px; color: #8B949E; font-weight:700;">STOP LOSS (TOTAL RISK)</div>
+            <div style="font-size: 20px; font-weight: 900; color: #F85149;">₹0.00</div>
+            <div style="font-size: 11px; color: #F85149; font-weight:700;">Max Loss: -₹{max_hero_loss:,.2f}</div>
+        </div>
+        <div class="metric-subcard" style="border: 1px solid #D29922;">
+            <div style="font-size: 11px; color: #D29922; font-weight:700;">BUY PREMIUM</div>
+            <div style="font-size: 20px; font-weight: 900; color: #FFFFFF;">₹{hero_premium:.2f}</div>
+            <div style="font-size: 11px; color: #8B949E; font-weight:700;">Entry</div>
+        </div>
+        <div class="metric-subcard">
+            <div style="font-size: 11px; color: #D29922; font-weight:700;">TARGET ({target_multiplier})</div>
+            <div style="font-size: 20px; font-weight: 900; color: #2EA043;">₹{target_price:.2f}</div>
+            <div style="font-size: 11px; color: #2EA043; font-weight:700;">Profit: +₹{max_hero_profit:,.2f}</div>
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("**Live Price Progress towards Target:**")
     st.progress(45)
 
 # ------------------------------------------------------------------
-# 3. RIGHT SIDE: WRITER POSITIONS & ZERO-HERO CHECKLIST
+# 3. RIGHT SIDE: WRITER POSITIONS & WHEN TO BUY / HOLD / WAIT GUIDE
 # ------------------------------------------------------------------
 with col_right:
     st.markdown("#### 🏛️ CALL/PUT WRITER POSITIONS (OI)")
@@ -368,15 +392,16 @@ with col_right:
     """, unsafe_allow_html=True)
     
     st.markdown("---")
-    st.markdown("#### ⚡ ZERO-HERO EXPIRY CHECKLIST")
+    st.markdown("#### ⏰ WHEN TO BUY, HOLD, OR WAIT (EXECUTION GUIDE)")
     
-    zh_check_df = pd.DataFrame({
-        "Condition": ["Time Window (1:30 PM+)", "Option Premium (₹10 - ₹20)", "OI Short Covering Trigger", "VWAP Breakout"],
-        "Status": ["🟢 Active (1:45 PM)", "🟢 ₹15.00 (Perfect)", "🟢 Call Writers Unwinding", "🟢 Above VWAP"],
-        "Signal": ["READY", "PASS", "CONFIRMED", "PASS"]
-    })
-    
-    st.dataframe(zh_check_df, use_container_width=True, hide_index=True)
+    st.markdown("""
+        <div class="action-guidance-box">
+            <p style="margin: 0 0 8px 0; font-size: 13px;"><b>🟢 9:15 AM - 10:00 AM (WAIT):</b> Do not chase opening volatility. Let the high/low range form.</p>
+            <p style="margin: 0 0 8px 0; font-size: 13px;"><b>🚀 1:30 PM+ ON EXPIRY (BUY WINDOW):</b> Best time for Zero-Hero trades. Gamma spikes rapidly if writers panic.</p>
+            <p style="margin: 0 0 8px 0; font-size: 13px;"><b>🛡️ HOLD RULE:</b> Keep holding if price stays above VWAP and Put OI increases. Exit immediately if SL hits.</p>
+            <p style="margin: 0; font-size: 13px;"><b>⏳ 2:45 PM+ (SQUARE OFF):</b> Mandatory exit time for expiry day OTM buyers to avoid settlement traps.</p>
+        </div>
+    """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------------
 # 4. CHART WITH OVERLAYS
@@ -416,4 +441,3 @@ st.markdown("---")
 if st.button("🔒 Lock Terminal"):
     st.session_state.authenticated = False
     st.rerun()
-
