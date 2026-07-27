@@ -1,158 +1,141 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.graph_objects as go
 
-# ---------------------------------------------------------
-# PAGE CONFIGURATION (Mobile Responsive Layout)
-# ---------------------------------------------------------
-st.set_page_config(
-    page_title="Terminal",
-    page_icon="📈",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
+# Page Config
+st.set_page_config(page_title="Pro Trading Terminal", page_icon="📈", layout="wide")
 
-# Custom Styling for Mobile
+# Custom Dark Theme & Styling
 st.markdown("""
-    <style>
-        .stApp { background-color: #0E1117; color: #FFFFFF; }
-        .metric-box {
-            background-color: #1E222D;
-            padding: 12px;
-            border-radius: 8px;
-            text-align: center;
-            border: 1px solid #2B2E3A;
-        }
-    </style>
+<style>
+    .stApp { background-color: #0b0e14; color: #e6edf3; }
+    .stButton>button { width: 100%; border-radius: 8px; font-weight: bold; background-color: #238636; color: white; }
+    
+    /* Custom Badges & Highlight Boxes */
+    .metric-card { background-color: #161b22; border: 1px solid #30363d; padding: 12px; border-radius: 8px; text-align: center; }
+    .hero-zero-box { background-color: rgba(234, 179, 8, 0.15); border: 1px solid #eab308; padding: 12px; border-radius: 8px; text-align: center; color: #fef08a; font-weight: bold; }
+    .bullish { color: #3fb950; font-weight: bold; }
+    .bearish { color: #f85149; font-weight: bold; }
+</style>
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# PASSCODE SECURITY
+# 1. SECURITY & PASSCODE ACCESS
 # ---------------------------------------------------------
-def check_password():
-    if "authenticated" not in st.session_state:
-        st.session_state["authenticated"] = False
+if 'authenticated' not in st.session_state:
+    st.session_state.authenticated = False
 
-    if not st.session_state["authenticated"]:
-        st.markdown("## 🔒 Private Trading Terminal")
-        st.caption("Enter your passcode to access the terminal.")
-        
-        passcode = st.text_input("Passcode", type="password", key="pwd_input")
-        if st.button("Unlock Terminal", use_container_width=True):
-            if passcode == "1234":  # Change your default passcode here
-                st.session_state["authenticated"] = True
-                st.rerun()
-            else:
-                st.error("Incorrect passcode. Try again.")
-        return False
-    return True
+def check_passcode():
+    if st.session_state.get("passcode_input") == "1234":
+        st.session_state.authenticated = True
+    else:
+        st.error("❌ Invalid Passcode")
 
-if not check_password():
+if not st.session_state.authenticated:
+    st.title("🔐 Terminal Locked")
+    st.text_input("Enter Passcode:", type="password", key="passcode_input", on_change=check_passcode)
     st.stop()
 
 # ---------------------------------------------------------
-# TERMINAL HEADER & NAVIGATION
+# 2. HEADER & GLOBAL MARKETS FEED
 # ---------------------------------------------------------
-st.title("⚡ Pro Terminal")
+st.title("⚡ Pro Trading Dashboard")
 
-index_choice = st.selectbox("Select Index", ["NIFTY 50", "BANK NIFTY", "FINNIFTY"])
+st.markdown("### 🌐 Global Markets Overview")
+g1, g2, g3, g4 = st.columns(4)
+g1.markdown('<div class="metric-card"><b>GIFT Nifty</b><br><span class="bullish">+85.50 (+0.35%)</span></div>', unsafe_allow_html=True)
+g2.markdown('<div class="metric-card"><b>Dow Jones</b><br><span class="bearish">-120.30 (-0.31%)</span></div>', unsafe_allow_html=True)
+g3.markdown('<div class="metric-card"><b>Nasdaq</b><br><span class="bullish">+112.40 (+0.62%)</span></div>', unsafe_allow_html=True)
+g4.markdown('<div class="metric-card"><b>India VIX</b><br><span>13.45 (-2.10%)</span></div>', unsafe_allow_html=True)
 
-# Default Index Configurations
-index_configs = {
-    "NIFTY 50": {"spot": 24500, "step": 50, "lot_size": 65},
-    "BANK NIFTY": {"spot": 52200, "step": 100, "lot_size": 30},
-    "FINNIFTY": {"spot": 23100, "step": 50, "lot_size": 60}
-}
-
-config = index_configs[index_choice]
-spot_price = config["spot"]
-
-# Top Metrics Row
-col1, col2, col3 = st.columns(3)
-with col1:
-    st.markdown(f"<div class='metric-box'><b>Spot</b><br><h3>{spot_price}</h3></div>", unsafe_allow_html=True)
-with col2:
-    st.markdown(f"<div class='metric-box'><b>Lot Size</b><br><h3>{config['lot_size']}</h3></div>", unsafe_allow_html=True)
-with col3:
-    st.markdown("<div class='metric-box'><b>PCR</b><br><h3>1.12</h3></div>", unsafe_allow_html=True)
-
-st.divider()
+st.markdown("---")
 
 # ---------------------------------------------------------
-# TABS FOR TOOLS
+# 3. NAVIGATION TABS
 # ---------------------------------------------------------
-tab1, tab2, tab3 = st.tabs(["📊 Option Chain", "🧮 Calculator", "📈 Chart"])
+tab1, tab2, tab3, tab4 = st.tabs(["📊 Option Chain & Levels", "🚀 Hero Zero Setup", "🧮 Calculator", "📈 Indicators & Charts"])
 
-# TAB 1: OPTION CHAIN ANALYSIS
+# --- TAB 1: OPTION CHAIN & S/R LEVELS ---
 with tab1:
-    st.subheader("Strike Matrix")
+    col_left, col_right = st.columns([3, 1])
     
-    strikes = [spot_price + (i * config["step"]) for i in range(-5, 6)]
-    
-    np.random.seed(42)
-    ce_oi = np.random.randint(10000, 80000, size=len(strikes))
-    pe_oi = np.random.randint(10000, 80000, size=len(strikes))
-    ce_ltp = np.round(np.linspace(250, 10, len(strikes)), 2)
-    pe_ltp = np.round(np.linspace(10, 250, len(strikes)), 2)
-    
-    df_chain = pd.DataFrame({
-        "CE OI": ce_oi,
-        "CE Price": ce_ltp,
-        "Strike": strikes,
-        "PE Price": pe_ltp,
-        "PE OI": pe_oi
-    })
-    
-    st.dataframe(df_chain, use_container_width=True, hide_index=True)
+    with col_left:
+        st.subheader("Option Chain Matrix")
+        
+        # Matrix Data
+        data = {
+            "CE OI": [10860, 64886, 16265, 47194, 54131, 70263, 26023, 51090, 77221, 74820],
+            "CE Price": [226.0, 202.0, 178.0, 154.0, 130.0, 106.0, 82.0, 58.0, 34.0, 10.0],
+            "Strike": [24300, 24350, 24400, 24450, 24500, 24550, 24600, 24650, 24700, 24750],
+            "PE Price": [34.0, 58.0, 82.0, 106.0, 130.0, 154.0, 178.0, 202.0, 226.0, 250.0],
+            "PE OI": [69735, 72955, 74925, 77969, 15311, 63707, 38693, 35658, 28431, 12747]
+        }
+        df = pd.DataFrame(data)
+        
+        st.dataframe(
+            df.style.highlight_max(axis=0, color="#1f3a29", subset=["CE OI", "PE OI"]),
+            use_container_width=True,
+            height=380
+        )
+        
+    with col_right:
+        st.subheader("🎯 Key Support & Resistance")
+        st.success("🟢 **Resistance 2 (R2):** 24,700")
+        st.info("🟢 **Resistance 1 (R1):** 24,550")
+        st.warning("🔴 **Support 1 (S1):** 24,450")
+        st.error("🔴 **Support 2 (S2):** 24,300")
+        
+        st.markdown("### PCR Ratio")
+        st.metric(label="Put Call Ratio (PCR)", value="1.18", delta="Bullish Bias")
 
-# TAB 2: POSITION SIZING & RISK CALCULATOR
+# --- TAB 2: HERO ZERO INDICATOR ---
 with tab2:
-    st.subheader("Position Sizing & Risk")
+    st.subheader("🔥 Hero Zero Scanner")
     
-    entry_price = st.number_input("Entry Premium Price", value=150.0, step=5.0)
-    stop_loss = st.number_input("Stop Loss Price", value=120.0, step=5.0)
-    lots = st.number_input("Number of Lots", value=2, step=1)
-    
-    total_qty = lots * config["lot_size"]
-    total_capital = entry_price * total_qty
-    risk_per_trade = (entry_price - stop_loss) * total_qty
-    
-    st.write(f"**Total Quantity:** {total_qty} units")
-    st.write(f"**Capital Required:** ₹{total_capital:,.2f}")
-    st.write(f"**Max Loss (Risk):** ₹{risk_per_trade:,.2f}")
+    st.markdown("""
+    <div class="hero-zero-box">
+        <h3>⚡ HERO ZERO TRIGGER ACTIVE</h3>
+        <p><b>Target Strike:</b> 24,500 CALL @ ₹15 - ₹20</p>
+        <p><b>Condition:</b> Sustaining above R1 (24,550) with heavy PE unwinding.</p>
+        <p><b>Target 1:</b> ₹40 | <b>Target 2:</b> ₹65 | <b>SL:</b> ₹5</p>
+    </div>
+    """, unsafe_allow_html=True)
 
-# TAB 3: PRICE ACTION VISUALIZER
+# --- TAB 3: CALCULATOR ---
 with tab3:
-    st.subheader("Price Movement")
+    st.subheader("🧮 Position Size & Risk Calculator")
+    c1, c2 = st.columns(2)
+    with c1:
+        entry = st.number_input("Entry Premium Price", value=100.0)
+        target = st.number_input("Target Price", value=130.0)
+    with c2:
+        stoploss = st.number_input("Stop Loss Price", value=85.0)
+        lots = st.number_input("Number of Lots (Lot Size: 25)", value=2, step=1)
+        
+    total_qty = lots * 25
+    profit = (target - entry) * total_qty
+    loss = (entry - stoploss) * total_qty
+    rr = round((target - entry) / (entry - stoploss), 2) if entry != stoploss else 0
     
-    # Generate Mock Candlestick Data
-    dates = pd.date_range(end=pd.Timestamp.now(), periods=20, freq="15min")
-    open_p = spot_price + np.random.randn(20) * 20
-    high_p = open_p + np.random.rand(20) * 15
-    low_p = open_p - np.random.rand(20) * 15
-    close_p = open_p + np.random.randn(20) * 10
+    st.info(f"💰 **Total Capital Used:** ₹{entry * total_qty:,.2f}")
+    st.success(f"📈 **Max Profit:** ₹{profit:,.2f} | 📉 **Max Loss:** ₹{loss:,.2f} | **Risk-Reward:** 1:{rr}")
+
+# --- TAB 4: INDICATORS & CHART ---
+with tab4:
+    st.subheader("📈 Technical Indicators & Live Trend")
     
-    fig = go.Figure(data=[go.Candlestick(
-        x=dates,
-        open=open_p, high=high_p,
-        low=low_p, close=close_p,
-        increasing_line_color='#00E676', 
-        decreasing_line_color='#FF5252'
-    )])
+    m1, m2, m3 = st.columns(3)
+    m1.metric("RSI (14)", "62.4", "Bullish")
+    m2.metric("VWAP", "24,480", "Above VWAP")
+    m3.metric("MACD Status", "Bullish Crossover", "+12.4")
     
-    fig.update_layout(
-        template="plotly_dark",
-        margin=dict(l=10, r=10, t=10, b=10),
-        height=350,
-        xaxis_rangeslider_visible=False
-    )
-    
-    st.plotly_chart(fig, use_container_width=True)
+    st.line_chart(df.set_index("Strike")[["CE Price", "PE Price"]])
 
 # ---------------------------------------------------------
-# FOOTER
+# FOOTER / LOCK BUTTON
 # ---------------------------------------------------------
-if st.button("🔒 Lock Terminal", use_container_width=True):
-    st.session_state["authenticated"] = False
+st.markdown("---")
+if st.button("🔒 Lock Terminal"):
+    st.session_state.authenticated = False
     st.rerun()
+
