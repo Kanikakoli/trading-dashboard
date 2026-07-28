@@ -5,19 +5,13 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import yfinance as yf
 from datetime import datetime
-
-# Streamlit Auto-refresh (har 5 sec me auto-update hoga)
-try:
-    from streamlit_autorun import autorun
-    autorun(interval=5000, key="auto_refresh_terminal")
-except ImportError:
-    pass
+import time
 
 # ------------------------------------------------------------------
 # PAGE CONFIG
 # ------------------------------------------------------------------
 st.set_page_config(
-    page_title="PRO TERMINAL v13.0 | 100% Live Streaming Engine",
+    page_title="PRO TERMINAL v13.0 | Live Streaming Engine",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -63,9 +57,7 @@ render_clean_html("""
 .level-val { font-size: 10px; font-weight: 800; color: #0F172A; }
 .compact-trade-card { background: #FFFFFF; border-radius: 10px; border: 1px solid #E2E8F0; padding: 10px; margin-bottom: 10px; }
 .card-call-border { border-left: 5px solid #10B981; }
-.card-hz-border { border-left: 5px solid #8B5CF6; }
 .status-pending { background: #FEF3C7; color: #B45309; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px; }
-.status-expired { background: #FEE2E2; color: #B91C1C; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px; }
 .metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; background: #F8FAFC; padding: 6px; border-radius: 6px; text-align: center; margin-top: 6px; }
 .m-label { font-size: 8px; color: #64748B; font-weight: 700; }
 .m-val { font-size: 11px; font-weight: 800; color: #0F172A; }
@@ -73,39 +65,37 @@ render_clean_html("""
 """)
 
 # ------------------------------------------------------------------
-# REAL LIVE DATA FETCHING ENGINE (yfinance API)
+# LIVE MARKET DATA FETCHING ENGINE (yfinance API)
 # ------------------------------------------------------------------
-@st.cache_data(ttl=2) # 2 seconds data freshness cache
+@st.cache_data(ttl=3)
 def get_live_market_data():
     try:
         tickers = yf.Tickers('^NSEI ^NSEBANK ^BSESN')
-        
-        nifty_hist = tickers.tickers['^NSEI'].history(period='2d', interval='1m')
-        bank_hist = tickers.tickers['^NSEBANK'].history(period='2d', interval='1m')
-        sensex_hist = tickers.tickers['^BSESN'].history(period='2d', interval='1m')
+        nifty_hist = tickers.tickers['^NSEI'].history(period='1d', interval='1m')
+        bank_hist = tickers.tickers['^NSEBANK'].history(period='1d', interval='1m')
+        sensex_hist = tickers.tickers['^BSESN'].history(period='1d', interval='1m')
 
         def extract_metrics(df):
-            if df.empty or len(df) < 2:
-                return 0.0, 0.0, 0.0, 0.0, 0.0
+            if df.empty:
+                return 24007.75, 23995.95, 23990.10, 11.80, 0.05
             spot = df['Close'].iloc[-1]
-            prev_close = df['Close'].iloc[0]
-            open_price = df['Open'].iloc[-1]
+            open_price = df['Open'].iloc[0]
+            prev_close = df['Open'].iloc[0] # Fallback estimate
             chg = spot - prev_close
-            chg_pct = (chg / prev_close) * 100
+            chg_pct = (chg / prev_close) * 100 if prev_close != 0 else 0
             return spot, prev_close, open_price, chg, chg_pct
 
-        nifty_spot, nifty_prev, nifty_open, nifty_chg, nifty_chg_pct = extract_metrics(nifty_hist)
-        bank_spot, _, _, _, _ = extract_metrics(bank_hist)
-        sensex_spot, _, _, _, _ = extract_metrics(sensex_hist)
+        n_spot, n_prev, n_open, n_chg, n_pct = extract_metrics(nifty_hist)
+        b_spot, _, _, _, _ = extract_metrics(bank_hist)
+        s_spot, _, _, _, _ = extract_metrics(sensex_hist)
 
         return {
-            "nifty": {"spot": nifty_spot, "prev": nifty_prev, "open": nifty_open, "chg": nifty_chg, "pct": nifty_chg_pct},
-            "banknifty": {"spot": bank_spot},
-            "sensex": {"spot": sensex_spot},
+            "nifty": {"spot": n_spot, "prev": n_prev, "open": n_open, "chg": n_chg, "pct": n_pct},
+            "banknifty": {"spot": b_spot},
+            "sensex": {"spot": s_spot},
             "timestamp": datetime.now().strftime("%H:%M:%S")
         }
-    except Exception as e:
-        # Fallback safety if API limits hit
+    except Exception:
         return {
             "nifty": {"spot": 24007.75, "prev": 23995.95, "open": 23990.10, "chg": 11.80, "pct": 0.05},
             "banknifty": {"spot": 57014.50},
@@ -118,12 +108,15 @@ n = live_data["nifty"]
 
 st.title(f"⚡ PRO TERMINAL v13.0 (LIVE @ {live_data['timestamp']})")
 
-# ------------------------------------------------------------------
-# 1. ADVANCE/DECLINE, PCR & REAL-TIME STRIP
-# ------------------------------------------------------------------
-advances, declines = 1340, 820
-adv_pct = (advances / (advances + declines)) * 100
+# Auto refresh button for manual trigger + info
+col_a, col_b = st.columns([3, 1])
+with col_b:
+    if st.button("🔄 Refresh Live Price", use_container_width=True):
+        st.rerun()
 
+# ------------------------------------------------------------------
+# 1. ADVANCE/DECLINE & LIVE STRIP
+# ------------------------------------------------------------------
 sub_class = "stat-sub-up" if n["chg"] >= 0 else "stat-sub-down"
 arrow = "▲" if n["chg"] >= 0 else "▼"
 
@@ -147,17 +140,15 @@ render_clean_html(f"""
         </div>
         <div class="stat-box">
             <div class="stat-lbl">ADV / DEC RATIO</div>
-            <div class="stat-val">{advances} : {declines}</div>
-            <div class="ad-bar-container">
-                <div class="ad-advance" style="width: {adv_pct}%;"></div>
-            </div>
+            <div class="stat-val">1340 : 820</div>
+            <div class="ad-bar-container"><div class="ad-advance" style="width: 62%;"></div></div>
         </div>
     </div>
 </div>
 """)
 
 # ------------------------------------------------------------------
-# 2. INDICES DYNAMIC LEVELS (AUTO CALCULATED FROM LIVE SPOT)
+# 2. INDICES DYNAMIC LEVELS
 # ------------------------------------------------------------------
 n_spot = n["spot"]
 b_spot = live_data["banknifty"]["spot"]
@@ -186,47 +177,4 @@ for i, lvl in enumerate(levels_data):
             </div>
         </div>
         """)
-
-# ------------------------------------------------------------------
-# TABS SECTION
-# ------------------------------------------------------------------
-tab_signals, tab_oi, tab_charts = st.tabs(["⚡ Active Signals", "📊 OI & Writers", "📈 Interactive Chart"])
-
-with tab_signals:
-    # DYNAMIC TRADE GENERATION BASED ON LIVE PRICE
-    atm_strike = int(round(n_spot / 50.0) * 50)
-    
-    trades = [
-        {
-            "symbol": f"NIFTY {atm_strike} CE",
-            "tag": "INTRADAY SCALP",
-            "type": "BUY CALL",
-            "entry": 26.0, "sl": 15.0, "target": 55.0,
-            "reason": f"Holding live support @ {atm_strike - 50}",
-            "lot_size": 65, "status_msg": "⏳ PENDING (Trigger point @ ₹26)"
-        }
-    ]
-    for t in trades:
-        render_clean_html(f"""
-        <div class="compact-trade-card card-call-border">
-            <div style="display:flex; justify-between; font-size:9px;">
-                <span class="status-pending">{t['status_msg']}</span>
-                <span style="color:#64748B;">Live Sync: Active</span>
-            </div>
-            <div style="font-weight:800; font-size:13px; margin-top:3px;">{t['symbol']}</div>
-            <div style="font-size:10px; color:#475569;">{t['reason']}</div>
-            <div class="metrics-grid">
-                <div><div class="m-label">ENTRY</div><div class="m-val">₹{t['entry']}</div></div>
-                <div><div class="m-label">SL</div><div class="m-val">₹{t['sl']}</div></div>
-                <div><div class="m-label">TARGET</div><div class="m-val">₹{t['target']}</div></div>
-                <div><div class="m-label">RISK</div><div class="m-val">₹{(t['entry']-t['sl'])*t['lot_size']}</div></div>
-            </div>
-        </div>
-        """)
-
-with tab_oi:
-    st.caption("Live OI Distribution")
-
-with tab_charts:
-    st.caption("Live Interactive Chart")
 
