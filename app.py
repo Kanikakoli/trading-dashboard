@@ -17,7 +17,27 @@ st.set_page_config(
 st.markdown("""
 <style>
 .stApp { background-color: #F8FAFC; color: #0F172A; }
-.block-container { padding: 0.4rem 0.4rem !important; max-width: 100% !important; }
+.block-container { padding: 0.3rem 0.3rem !important; max-width: 100% !important; }
+
+/* Force horizontal side-by-side layout for indices even on mobile */
+.indices-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 6px;
+}
+.index-card-item {
+    flex: 1 1 calc(32% - 4px);
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 6px;
+    padding: 6px 4px;
+    text-align: center;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+}
+.idx-title { font-size: 8px; color: #64748B; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.idx-val { font-size: 10px; color: #0F172A; font-weight: 900; margin: 2px 0; }
+.idx-chg { font-size: 8px; font-weight: 800; }
 
 .status-banner {
     padding: 5px 10px; border-radius: 5px; font-size: 10px;
@@ -84,39 +104,26 @@ def get_real_market_data():
             data_res[name] = {"price": p, "open": p*0.995, "high": p*1.008, "low": p*0.992, "chg": 0.02}
     return data_res
 
-st.markdown("<h3 style='margin:0; padding:0; font-size:16px;'>⚡ PRO MASTER TERMINAL</h3>", unsafe_allow_html=True)
+st.markdown("<h3 style='margin:0; padding:0; font-size:15px;'>⚡ PRO MASTER TERMINAL</h3>", unsafe_allow_html=True)
 
 market_data = get_real_market_data()
 
 index_options = ["ALL INDICES"] + list(tickers.keys())
 selected_index = st.selectbox("🎯 Select Active Index", index_options, index=0)
 
-items = list(market_data.items())
-r1 = st.columns(3)
-for i in range(3):
-    name, info = items[i]
+# Render indices using Flexbox Grid to ensure side-by-side layout on mobile screens
+html_indices = '<div class="indices-grid">'
+for name, info in market_data.items():
     color = "#16A34A" if info['chg'] >= 0 else "#DC2626"
-    with r1[i]:
-        st.markdown(f"""
-        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 5px; padding: 4px; text-align: center; margin-bottom: 4px;">
-            <div style="font-size: 7px; color: #64748B; font-weight: 800;">{name}</div>
-            <div style="font-size: 9px; color: #0F172A; font-weight: 900;">{info['price']}</div>
-            <div style="font-size: 7px; font-weight: 800; color: {color};">{info['chg']}%</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-r2 = st.columns(3)
-for i in range(3, 6):
-    name, info = items[i]
-    color = "#16A34A" if info['chg'] >= 0 else "#DC2626"
-    with r2[i-3]:
-        st.markdown(f"""
-        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 5px; padding: 4px; text-align: center; margin-bottom: 6px;">
-            <div style="font-size: 7px; color: #64748B; font-weight: 800;">{name}</div>
-            <div style="font-size: 9px; color: #0F172A; font-weight: 900;">{info['price']}</div>
-            <div style="font-size: 7px; font-weight: 800; color: {color};">{info['chg']}%</div>
-        </div>
-        """, unsafe_allow_html=True)
+    html_indices += f"""
+    <div class="index-card-item">
+        <div class="idx-title">{name}</div>
+        <div class="idx-val">{info['price']}</div>
+        <div class="idx-chg" style="color: {color};">{info['chg']}%</div>
+    </div>
+    """
+html_indices += '</div>'
+st.markdown(html_indices, unsafe_allow_html=True)
 
 # Advance / Decline & PCR Bar
 st.markdown("""
@@ -217,11 +224,10 @@ with tab_btst:
 with tab_hz:
     st.markdown("<div style='font-size:11px; font-weight:800; margin-bottom:4px;'>🔥 Detailed Hero-Zero & Gamma Explosion Engine</div>", unsafe_allow_html=True)
     
-    # Get active index details for metrics
     curr_idx_key = "NIFTY" if selected_index == "ALL INDICES" else selected_index
     curr_info = market_data[curr_idx_key]
     
-    # Detailed KPI Tags for Hero-Zero Market Context
+    # KPI Tags for Hero-Zero Market Context
     st.markdown(f"""
     <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-bottom: 8px;">
         <div style="background: #F1F5F9; padding: 6px; border-radius: 6px; text-align: center;">
