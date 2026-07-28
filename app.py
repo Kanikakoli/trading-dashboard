@@ -16,6 +16,10 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# Helper Function to render raw HTML cleanly
+def render_clean_html(html_str):
+    st.markdown(str(html_str).strip(), unsafe_allow_html=True)
+
 st.markdown("""
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="mobile-web-app-capable" content="yes">
@@ -62,9 +66,6 @@ if not st.session_state.authenticated:
     st.text_input("Enter Passcode:", type="password", key="passcode_input", on_change=check_passcode)
     st.stop()
 
-def render_clean_html(html_str):
-    st.markdown(html_str.strip(), unsafe_allow_html=True)
-
 # Push Notification & Audio Trigger Engine
 def trigger_native_push(title, message, play_sound=True):
     sound_js = "playAlertSound();" if play_sound else ""
@@ -83,9 +84,9 @@ def trigger_native_push(title, message, play_sound=True):
     st.components.v1.html(js_code, height=0)
 
 # ------------------------------------------------------------------
-# 2. HIGHLY VISUALIZED CUSTOM CSS (TERMINAL UI WITH MODIFIED BADGES)
+# 2. HIGHLY VISUALIZED CUSTOM CSS (FIXED FOR TYPEERROR)
 # ------------------------------------------------------------------
-render_clean_html("""
+css_content = """
 <style>
 .block-container {
     padding-top: 0.2rem !important;
@@ -143,13 +144,7 @@ render_clean_html("""
 
 .card-top-row { display: flex; justify-content: space-between; align-items: center; gap: 4px; flex-wrap: wrap; }
 .algo-badge { background: #EFF6FF; color: #1D4ED8; font-size: 8px; font-weight: 800; padding: 2px 6px; border-radius: 4px; border: 1px solid #BFDBFE; }
-.updated-badge { background: #FEF3C7; color: #B45309; font-size: 8px; font-weight: 900; padding: 2px 6px; border-radius: 4px; border: 1px solid #FDE68A; animation: blink 1.5s infinite; }
-
-@keyframes blink {
-    0% { opacity: 1; }
-    50% { opacity: 0.5; }
-    100% { opacity: 1; }
-}
+.updated-badge { background: #FEF3C7; color: #B45309; font-size: 8px; font-weight: 900; padding: 2px 6px; border-radius: 4px; border: 1px solid #FDE68A; }
 
 .status-badge { font-size: 9px; font-weight: 800; padding: 3px 8px; border-radius: 6px; text-transform: uppercase; }
 .st-active { background: #D1FAE5; color: #047857; }
@@ -201,7 +196,9 @@ render_clean_html("""
     font-weight: 700;
 }
 </style>
-""", unsafe_allow_html=True)
+"""
+
+render_clean_html(css_content)
 
 # ------------------------------------------------------------------
 # 3. LIVE DATA ENGINE
@@ -325,9 +322,9 @@ with tab_signals:
             "entry": round(ltp_n_ce * 0.98, 1),
             "sl": round(ltp_n_ce * 0.75, 1),
             "hold_sl": round(ltp_n_ce * 0.65, 1),
-            "old_target": round(ltp_n_ce * 1.25, 1), # Pehla target
-            "target": round(ltp_n_ce * 1.50, 1),     # Extended/Modified target
-            "is_target_updated": True,               # Highlight Flag
+            "old_target": round(ltp_n_ce * 1.25, 1),
+            "target": round(ltp_n_ce * 1.50, 1),
+            "is_target_updated": True,
             "trail_sl": round(ltp_n_ce * 1.10, 1),
             "reason": f"Strong Momentum! Target Extended from ₹{round(ltp_n_ce * 1.25, 1)}",
             "lot": 65, "is_call": True
@@ -499,7 +496,7 @@ with tab_hero:
         """)
 
 # ------------------------------------------------------------------
-# TAB 3: OPTION CHAIN (HIDE INDEX ENABLED)
+# TAB 3: OPTION CHAIN
 # ------------------------------------------------------------------
 with tab_chain:
     ref_spot = n['spot']
