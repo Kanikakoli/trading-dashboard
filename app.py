@@ -16,11 +16,11 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Helper Function to render raw HTML cleanly
+# Robust HTML Renderer (Uses Streamlit's Native st.html)
 def render_clean_html(html_str):
-    st.markdown(str(html_str).strip(), unsafe_allow_html=True)
+    st.html(str(html_str).strip())
 
-st.markdown("""
+st.html("""
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -35,7 +35,6 @@ st.markdown("""
     }
     requestNotificationPermission();
 
-    // Audio Alert Play Function
     function playAlertSound() {
         var context = new (window.AudioContext || window.webkitAudioContext)();
         var osc = context.createOscillator();
@@ -43,13 +42,13 @@ st.markdown("""
         osc.connect(gain);
         gain.connect(context.destination);
         osc.type = "sine";
-        osc.frequency.setValueAtTime(880, context.currentTime); // High pitch A5 tone
+        osc.frequency.setValueAtTime(880, context.currentTime);
         gain.gain.setValueAtTime(0.1, context.currentTime);
         osc.start();
         osc.stop(context.currentTime + 0.3);
     }
     </script>
-""", unsafe_allow_html=True)
+""")
 
 # Passcode Auth
 if 'authenticated' not in st.session_state:
@@ -66,7 +65,7 @@ if not st.session_state.authenticated:
     st.text_input("Enter Passcode:", type="password", key="passcode_input", on_change=check_passcode)
     st.stop()
 
-# Push Notification & Audio Trigger Engine
+# Notification Helper
 def trigger_native_push(title, message, play_sound=True):
     sound_js = "playAlertSound();" if play_sound else ""
     js_code = f"""
@@ -84,7 +83,7 @@ def trigger_native_push(title, message, play_sound=True):
     st.components.v1.html(js_code, height=0)
 
 # ------------------------------------------------------------------
-# 2. HIGHLY VISUALIZED CUSTOM CSS (FIXED FOR TYPEERROR)
+# 2. CUSTOM CSS
 # ------------------------------------------------------------------
 css_content = """
 <style>
@@ -197,7 +196,6 @@ css_content = """
 }
 </style>
 """
-
 render_clean_html(css_content)
 
 # ------------------------------------------------------------------
@@ -212,14 +210,12 @@ def calc_live_option_price(spot, strike, is_call=True):
 @st.cache_data(ttl=3)
 def fetch_live_engine():
     data = {
-        "nifty": {"spot": 24007.55, "open": 23971.25, "chg": 36.30, "pct": 0.15},
-        "banknifty": {"spot": 57000.00, "open": 56850.00, "chg": 150.00, "pct": 0.26},
+        "nifty": {"spot": 24029.60, "open": 23971.25, "chg": 58.35, "pct": 0.24},
+        "banknifty": {"spot": 57003.30, "open": 56850.00, "chg": 150.00, "pct": 0.26},
         "finnifty": {"spot": 21850.00, "open": 21800.00, "chg": 50.00, "pct": 0.23},
         "midcap": {"spot": 12450.00, "open": 12400.00, "chg": 50.00, "pct": 0.40},
-        "pcr": 0.88,
         "time": datetime.now().strftime("%H:%M:%S")
     }
-    
     try:
         indices = yf.Tickers('^NSEI ^NSEBANK')
         n_df = indices.tickers['^NSEI'].history(period='1d', interval='1m')
@@ -263,7 +259,7 @@ with col_ref:
     if st.button("🔄 Sync Market Data", use_container_width=True):
         st.rerun()
 
-# Multi-Index Overview Bar
+# Overview Bar
 render_clean_html(f"""
 <div class="market-stats-bar">
     <div class="stats-grid">
@@ -301,9 +297,6 @@ tab_signals, tab_hero, tab_chain, tab_charts = st.tabs([
     "📈 Interactive Chart"
 ])
 
-# ------------------------------------------------------------------
-# TAB 1: ACTIVE SIGNALS WITH MODIFIED TARGET HIGHLIGHTS
-# ------------------------------------------------------------------
 with tab_signals:
     n_atm = int(round(n['spot'] / 50.0) * 50)
     b_atm = int(round(b['spot'] / 100.0) * 100)
@@ -345,7 +338,7 @@ with tab_signals:
             "lot": 15, "is_call": False
         },
         {
-            "symbol": f"FINNIFTY 21850 CE",
+            "symbol": "FINNIFTY 21850 CE",
             "type": "BUY CALL",
             "algo": "MOMENTUM BREAKOUT",
             "ltp": ltp_fin_ce,
@@ -360,7 +353,7 @@ with tab_signals:
             "lot": 40, "is_call": True
         },
         {
-            "symbol": f"MIDCAP NIFTY 12450 PE",
+            "symbol": "MIDCAP NIFTY 12450 PE",
             "type": "BUY PUT",
             "algo": "RSI DIVERGENCE",
             "ltp": ltp_mid_pe,
@@ -379,42 +372,28 @@ with tab_signals:
     for t in trades:
         ltp, entry, sl, hold_sl, target = t['ltp'], t['entry'], t['sl'], t['hold_sl'], t['target']
         
-        # Check Status
         if ltp >= target:
             status_text, status_class = "🎯 TARGET HIT", "st-target"
-            trigger_native_push("🎯 TARGET ACHIEVED", f"{t['symbol']} hit Target ₹{target}!")
         elif ltp <= hold_sl:
             status_text, status_class = "🛑 HOLD SL EXIT", "st-sl"
-            trigger_native_push("🛑 SYSTEM SL HIT", f"{t['symbol']} hit Hold SL @ ₹{hold_sl}!")
         else:
             status_text, status_class = "🟢 ACTIVE SIGNAL", "st-active"
-
-        # Push Notification if Target Modified
-        if t['is_target_updated'] and 'notified_' + t['symbol'] not in st.session_state:
-            st.session_state['notified_' + t['symbol']] = True
-            trigger_native_push("🟡 TARGET UPDATED!", f"{t['symbol']} Target raised to ₹{target}!")
 
         card_class = "trade-card" if t['is_call'] else "trade-card trade-card-put"
         risk_amount = round((entry - sl) * t['lot'])
 
-        # Updated Badge HTML
-        updated_badge_html = f'<span class="updated-badge">🎯 TARGET UPDATED</span>' if t['is_target_updated'] else ''
+        updated_badge_html = '<span class="updated-badge">🎯 TARGET UPDATED</span>' if t['is_target_updated'] else ''
+        target_style = "color:#D97706; font-weight:900; background:#FEF3C7; padding:2px 4px; border-radius:4px;" if t['is_target_updated'] else "color:#16A34A; font-weight:900;"
 
-        # Target Box Highlight
-        target_style = "color:#16A34A; font-weight:900;"
-        if t['is_target_updated']:
-            target_style = "color:#D97706; font-weight:900; background:#FEF3C7; padding:2px 4px; border-radius:4px;"
+        target_update_banner = f"""
+        <div class="target-updated-box">
+            <span>🚀 Target Extended: ₹{t['old_target']} ➔ <b>₹{target}</b></span>
+            <span>🔥 Trail SL: ₹{t['trail_sl']}</span>
+        </div>
+        """ if t['is_target_updated'] else ""
 
-        target_update_banner = ""
-        if t['is_target_updated']:
-            target_update_banner = f"""
-            <div class="target-updated-box">
-                <span>🚀 Target Extended: ₹{t['old_target']} ➔ <b>₹{target}</b></span>
-                <span>🔥 Trail SL: ₹{t['trail_sl']}</span>
-            </div>
-            """
-
-        render_clean_html(f"""
+        # Construct Clean HTML Card String
+        html_card = f"""
         <div class="{card_class}">
             <div class="card-top-row">
                 <div>
@@ -440,34 +419,26 @@ with tab_signals:
                 <span>💰 <b>RISK/LOT:</b> ₹{risk_amount:,}</span>
             </div>
         </div>
-        """)
+        """
+        render_clean_html(html_card)
 
 # ------------------------------------------------------------------
 # TAB 2: ZERO-HERO ALGO
 # ------------------------------------------------------------------
 with tab_hero:
     st.markdown("### 🚀 Expiry Zero-Hero Special Calls")
-
     hero_trades = [
         {
             "symbol": f"NIFTY {n_atm + 100} CE",
             "type": "HERO-ZERO (CALL)",
-            "ltp": 22.50,
-            "entry": 20.00,
-            "sl": 5.00,
-            "target": 75.00,
-            "reason": "Post-1:30 PM Gamma Spike Triggered",
-            "lot": 65
+            "ltp": 22.50, "entry": 20.00, "sl": 5.00, "target": 75.00,
+            "reason": "Post-1:30 PM Gamma Spike Triggered"
         },
         {
             "symbol": f"BANK NIFTY {b_atm - 200} PE",
             "type": "HERO-ZERO (PUT)",
-            "ltp": 28.00,
-            "entry": 25.00,
-            "sl": 6.00,
-            "target": 95.00,
-            "reason": "Short Covering Breakout Expected",
-            "lot": 15
+            "ltp": 28.00, "entry": 25.00, "sl": 6.00, "target": 95.00,
+            "reason": "Short Covering Breakout Expected"
         }
     ]
 
@@ -504,8 +475,7 @@ with tab_chain:
     center = int(round(ref_spot / float(step)) * step)
     strikes = [center - (2 * step), center - step, center, center + step, center + (2 * step)]
 
-    chain_rows = []
-    call_oi_list, put_oi_list = [], []
+    chain_rows, call_oi_list, put_oi_list = [], [], []
 
     for s in strikes:
         c_price = calc_live_option_price(ref_spot, s, is_call=True)
@@ -524,16 +494,12 @@ with tab_chain:
             "Put OI": f"{p_oi:.2f}L",
         })
     
-    df_chain = pd.DataFrame(chain_rows)
-    st.dataframe(df_chain, use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(chain_rows), use_container_width=True, hide_index=True)
 
     fig_oi = go.Figure()
-    fig_oi.add_trace(go.Bar(x=[str(s) for s in strikes], y=call_oi_list, name='Call OI (Resistance)', marker_color='#EF4444'))
-    fig_oi.add_trace(go.Bar(x=[str(s) for s in strikes], y=put_oi_list, name='Put OI (Support)', marker_color='#10B981'))
-    fig_oi.update_layout(
-        barmode='group', height=220, margin=dict(l=0, r=0, t=10, b=0),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-    )
+    fig_oi.add_trace(go.Bar(x=[str(s) for s in strikes], y=call_oi_list, name='Call OI', marker_color='#EF4444'))
+    fig_oi.add_trace(go.Bar(x=[str(s) for s in strikes], y=put_oi_list, name='Put OI', marker_color='#10B981'))
+    fig_oi.update_layout(barmode='group', height=220, margin=dict(l=0, r=0, t=10, b=0))
     st.plotly_chart(fig_oi, use_container_width=True)
 
 # ------------------------------------------------------------------
