@@ -19,15 +19,15 @@ st.markdown("""
 .stApp { background-color: #F8FAFC; color: #0F172A; }
 .block-container { padding: 0.3rem 0.3rem !important; max-width: 100% !important; }
 
-/* Force horizontal side-by-side layout for indices even on mobile */
-.indices-grid {
+/* Pure CSS Flexbox Grid for horizontal layout */
+.indices-row {
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
     margin-bottom: 6px;
 }
-.index-card-item {
-    flex: 1 1 calc(32% - 4px);
+.index-box {
+    flex: 1 1 30%;
     background: #FFFFFF;
     border: 1px solid #E2E8F0;
     border-radius: 6px;
@@ -35,7 +35,7 @@ st.markdown("""
     text-align: center;
     box-shadow: 0 1px 2px rgba(0,0,0,0.02);
 }
-.idx-title { font-size: 8px; color: #64748B; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.idx-title { font-size: 8px; color: #64748B; font-weight: 800; }
 .idx-val { font-size: 10px; color: #0F172A; font-weight: 900; margin: 2px 0; }
 .idx-chg { font-size: 8px; font-weight: 800; }
 
@@ -111,19 +111,19 @@ market_data = get_real_market_data()
 index_options = ["ALL INDICES"] + list(tickers.keys())
 selected_index = st.selectbox("🎯 Select Active Index", index_options, index=0)
 
-# Render indices using Flexbox Grid to ensure side-by-side layout on mobile screens
-html_indices = '<div class="indices-grid">'
+# Build a SINGLE combined HTML string to prevent Streamlit from rendering raw text tags
+html_output = '<div class="indices-row">'
 for name, info in market_data.items():
     color = "#16A34A" if info['chg'] >= 0 else "#DC2626"
-    html_indices += f"""
-    <div class="index-card-item">
+    html_output += f"""
+    <div class="index-box">
         <div class="idx-title">{name}</div>
         <div class="idx-val">{info['price']}</div>
         <div class="idx-chg" style="color: {color};">{info['chg']}%</div>
     </div>
     """
-html_indices += '</div>'
-st.markdown(html_indices, unsafe_allow_html=True)
+html_output += '</div>'
+st.markdown(html_output, unsafe_allow_html=True)
 
 # Advance / Decline & PCR Bar
 st.markdown("""
@@ -227,7 +227,6 @@ with tab_hz:
     curr_idx_key = "NIFTY" if selected_index == "ALL INDICES" else selected_index
     curr_info = market_data[curr_idx_key]
     
-    # KPI Tags for Hero-Zero Market Context
     st.markdown(f"""
     <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-bottom: 8px;">
         <div style="background: #F1F5F9; padding: 6px; border-radius: 6px; text-align: center;">
