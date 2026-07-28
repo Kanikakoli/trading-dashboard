@@ -5,10 +5,10 @@ import plotly.graph_objects as go
 import yfinance as yf
 
 # ------------------------------------------------------------------
-# 1. PAGE CONFIGURATION & STYLING
+# 1. PAGE CONFIGURATION & CSS
 # ------------------------------------------------------------------
 st.set_page_config(
-    page_title="PRO TERMINAL - OPTIMIZED",
+    page_title="PRO MASTER TERMINAL",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -18,6 +18,25 @@ st.markdown("""
 <style>
 .stApp { background-color: #F8FAFC; color: #0F172A; }
 .block-container { padding: 0.4rem 0.4rem !important; max-width: 100% !important; }
+
+/* Compact Grid for Tickers to save space */
+.ticker-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 5px;
+    margin-bottom: 8px;
+}
+.ticker-card {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 6px;
+    padding: 5px;
+    text-align: center;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+}
+.ticker-title { font-size: 8px; color: #64748B; font-weight: 800; }
+.ticker-val { font-size: 10px; color: #0F172A; font-weight: 900; margin: 1px 0; }
+.ticker-chg { font-size: 8px; font-weight: 800; }
 
 .status-banner {
     padding: 5px 10px; border-radius: 5px; font-size: 10px;
@@ -75,34 +94,44 @@ def get_real_market_data():
             chg_pct = round(((price - prev_close) / prev_close) * 100, 2)
             data_res[name] = {"price": price, "chg": chg_pct}
         except:
-            fallback = {"NIFTY": 23985.35, "BANKNIFTY": 51200.0, "FINNIFTY": 23400.0, "MIDCPNIFTY": 12500.0, "SENSEX": 76780.06, "NIFTY IT": 30418.35}
+            fallback = {"NIFTY": 23985.35, "BANKNIFTY": 56755.6, "FINNIFTY": 26024.2, "MIDCPNIFTY": 14541.05, "SENSEX": 76765.92, "NIFTY IT": 30418.35}
             data_res[name] = {"price": fallback.get(name, 20000.0), "chg": 0.02}
     return data_res
 
-st.markdown("<h3 style='margin:0; padding:0; font-size:18px;'>⚡ PRO TERMINAL</h3>", unsafe_allow_html=True)
+st.markdown("<h3 style='margin:0; padding:0; font-size:16px;'>⚡ PRO MASTER TERMINAL</h3>", unsafe_allow_html=True)
 
 market_data = get_real_market_data()
 
-# Dropdown with "ALL INDICES" option included
+# Dropdown with "ALL INDICES"
 index_options = ["ALL INDICES"] + list(tickers.keys())
 selected_index = st.selectbox("🎯 Select Active Index", index_options, index=0)
 
-# Native Streamlit Columns Ticker Bar (No raw text/string issue)
-cols = st.columns(len(market_data))
-for i, (name, info) in enumerate(market_data.items()):
-    with cols[i]:
-        color = "#16A34A" if info['chg'] >= 0 else "#DC2626"
-        st.markdown(f"""
-        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 6px; padding: 4px; text-align: center;">
-            <div style="font-size: 8px; color: #64748B; font-weight: 800;">{name}</div>
-            <div style="font-size: 10px; color: #0F172A; font-weight: 900;">{info['price']}</div>
-            <div style="font-size: 8px; font-weight: 800; color: {color};">{info['chg']}%</div>
-        </div>
-        """, unsafe_allow_html=True)
+# Compact Grid View for Tickers (No vertical space waste)
+ticker_html = '<div class="ticker-grid">'
+for name, info in market_data.items():
+    color = "#16A34A" if info['chg'] >= 0 else "#DC2626"
+    ticker_html += f"""
+    <div class="ticker-card">
+        <div class="ticker-title">{name}</div>
+        <div class="ticker-val">{info['price']}</div>
+        <div class="ticker-chg" style="color: {color};">{info['chg']}%</div>
+    </div>
+    """
+ticker_html += '</div>'
+st.markdown(ticker_html, unsafe_allow_html=True)
 
-st.markdown("<br>", unsafe_allow_html=True)
+# Advance / Decline & PCR Bar Restored
+st.markdown("""
+<div style="display: flex; gap: 6px; margin-bottom: 8px;">
+    <div style="flex: 1; background: #E0F2FE; padding: 5px; border-radius: 5px; text-align: center; font-size: 10px; font-weight: 800; color: #0369A1;">
+        📈 ADV: <b>34</b> | DEC: <b>16</b>
+    </div>
+    <div style="flex: 1; background: #F3E8FF; padding: 5px; border-radius: 5px; text-align: center; font-size: 10px; font-weight: 800; color: #6B21A8;">
+        📊 PCR: <b>1.08</b> | ⏰ EXPIRY ACTIVE
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
-# Determine active spot based on selection
 active_spot = market_data["NIFTY"]["price"] if selected_index == "ALL INDICES" else market_data[selected_index]["price"]
 step = 100 if selected_index in ["BANKNIFTY", "SENSEX", "NIFTY IT"] else 50
 atm_strike = int(round(active_spot / step) * step) if selected_index != "ALL INDICES" else 24000
@@ -129,8 +158,8 @@ tab_trades, tab_eval, tab_btst, tab_hz, tab_chain, tab_chart = st.tabs([
 ])
 
 with tab_trades:
-    disp_name = "All Indices Overview" if selected_index == "ALL INDICES" else selected_index
-    st.markdown(f"<div style='font-size:12px; font-weight:800; margin-bottom:6px;'>🚀 Active Trades ({disp_name})</div>", unsafe_allow_html=True)
+    disp_name = "All Indices" if selected_index == "ALL INDICES" else selected_index
+    st.markdown(f"<div style='font-size:11px; font-weight:800; margin-bottom:4px;'>🚀 Active Trades ({disp_name})</div>", unsafe_allow_html=True)
     
     signals = [
         {"symbol": f"{selected_index if selected_index!='ALL INDICES' else 'NIFTY'} {itm_strike} CE", "ltp": ce_itm_ltp, "entry": 45.60, "sl": 15.00, "target": 90.00},
@@ -153,7 +182,7 @@ with tab_trades:
         """, unsafe_allow_html=True)
 
 with tab_eval:
-    st.markdown("<div style='font-size:12px; font-weight:800; margin-bottom:6px;'>💡 AI Trade Evaluator</div>", unsafe_allow_html=True)
+    st.markdown("<div style='font-size:11px; font-weight:800; margin-bottom:4px;'>💡 AI Trade Evaluator</div>", unsafe_allow_html=True)
     col1, col2 = st.columns(2)
     with col1: u_strike = st.number_input("Strike", value=int(atm_strike), step=step)
     with col2: u_opt = st.selectbox("Type", ["CE (Call)", "PE (Put)"])
@@ -173,7 +202,7 @@ with tab_eval:
     """, unsafe_allow_html=True)
 
 with tab_btst:
-    st.markdown("<div style='font-size:12px; font-weight:800; margin-bottom:6px;'>🎯 BTST Zone</div>", unsafe_allow_html=True)
+    st.markdown("<div style='font-size:11px; font-weight:800; margin-bottom:4px;'>🎯 BTST Zone</div>", unsafe_allow_html=True)
     st.markdown(f"""
     <div class="analysis-card">
         <div class="status-banner banner-running"><span>🌙 OVERNIGHT</span><span>3:15 PM</span></div>
@@ -188,7 +217,7 @@ with tab_btst:
     """, unsafe_allow_html=True)
 
 with tab_hz:
-    st.markdown("<div style='font-size:12px; font-weight:800; margin-bottom:6px;'>🔥 Hero-Zero Special</div>", unsafe_allow_html=True)
+    st.markdown("<div style='font-size:11px; font-weight:800; margin-bottom:4px;'>🔥 Hero-Zero Special</div>", unsafe_allow_html=True)
     st.markdown(f"""
     <div class="analysis-card" style="border-left-color: #9333EA;">
         <div class="status-banner" style="background: #F3E8FF; color: #6B21A8;"><span>🚀 SPIKE</span><span>ACTIVE</span></div>
@@ -203,7 +232,7 @@ with tab_hz:
     """, unsafe_allow_html=True)
 
 with tab_chain:
-    st.markdown("<div style='font-size:12px; font-weight:800; margin-bottom:6px;'>📊 Option Chain Matrix</div>", unsafe_allow_html=True)
+    st.markdown("<div style='font-size:11px; font-weight:800; margin-bottom:4px;'>📊 Option Chain Matrix</div>", unsafe_allow_html=True)
     chain_df = pd.DataFrame([
         {"CALL OI": "1.00L", "CALL": f"₹{get_expiry_aware_ltp(atm_strike-step, True, active_spot)}", "STRIKE": atm_strike-step, "PUT": f"₹{get_expiry_aware_ltp(atm_strike-step, False, active_spot)}", "PUT OI": "3.55L"},
         {"CALL OI": "2.38L", "CALL": f"₹{ce_itm_ltp}", "STRIKE": atm_strike, "PUT": f"₹{get_expiry_aware_ltp(atm_strike, False, active_spot)}", "PUT OI": "7.15L"},
@@ -212,9 +241,10 @@ with tab_chain:
     st.dataframe(chain_df, use_container_width=True, hide_index=True)
 
 with tab_chart:
-    st.markdown("<div style='font-size:12px; font-weight:800; margin-bottom:6px;'>📈 OI Distribution</div>", unsafe_allow_html=True)
+    st.markdown("<div style='font-size:11px; font-weight:800; margin-bottom:4px;'>📈 OI Distribution</div>", unsafe_allow_html=True)
     fig = go.Figure()
     fig.add_trace(go.Bar(x=[str(atm_strike-step), str(atm_strike), str(atm_strike+step)], y=[1.00, 2.38, 9.32], name='Call OI', marker_color='#DC2626'))
     fig.add_trace(go.Bar(x=[str(atm_strike-step), str(atm_strike), str(atm_strike+step)], y=[3.55, 7.15, 5.66], name='Put OI', marker_color='#16A34A'))
-    fig.update_layout(barmode='group', height=250, margin=dict(l=10, r=10, t=10, b=10), template="plotly_white")
+    fig.update_layout(barmode='group', height=220, margin=dict(l=10, r=10, t=10, b=10), template="plotly_white")
     st.plotly_chart(fig, use_container_width=True)
+
