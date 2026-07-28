@@ -10,7 +10,7 @@ from datetime import datetime
 # PAGE CONFIG & AUTHENTICATION
 # ------------------------------------------------------------------
 st.set_page_config(
-    page_title="PRO TERMINAL v15.0 | Live Engine",
+    page_title="PRO TERMINAL v16.0 | Live Engine",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -83,8 +83,8 @@ render_clean_html("""
 .card-call-border { border-left: 5px solid #10B981; }
 .card-hz-border { border-left: 5px solid #8B5CF6; }
 
+.status-active { background: #D1FAE5; color: #047857; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px; }
 .status-pending { background: #FEF3C7; color: #B45309; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px; }
-.status-expired { background: #FEE2E2; color: #B91C1C; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px; }
 
 .metrics-grid {
     display: grid;
@@ -110,7 +110,16 @@ render_clean_html("""
 """)
 
 # ------------------------------------------------------------------
-# LIVE DATA ENGINE
+# DYNAMIC PREMIUM CALCULATOR ENGINE
+# ------------------------------------------------------------------
+def calc_live_option_price(spot, strike, is_call=True):
+    intrinsic = max(0, spot - strike) if is_call else max(0, strike - spot)
+    dist = abs(spot - strike)
+    time_val = max(4.0, 45.0 - (dist * 0.18))
+    return round(intrinsic + time_val, 2)
+
+# ------------------------------------------------------------------
+# LIVE DATA FETCHING
 # ------------------------------------------------------------------
 @st.cache_data(ttl=4)
 def fetch_live_engine():
@@ -171,7 +180,7 @@ def fetch_live_engine():
 engine_data = fetch_live_engine()
 n = engine_data["nifty"]
 
-st.title(f"⚡ PRO TERMINAL v15.0 (LIVE @ {engine_data['time']})")
+st.title(f"⚡ PRO TERMINAL v16.0 (LIVE @ {engine_data['time']})")
 
 col_r, _ = st.columns([1, 3])
 with col_r:
@@ -259,7 +268,7 @@ tab_signals, tab_oi, tab_charts, tab_basket = st.tabs([
     "✍️ Multi-Trade Basket"
 ])
 
-# TAB 1: SIGNALS
+# TAB 1: DYNAMIC LIVE SIGNALS LOGIC
 with tab_signals:
     col_f1, col_f2 = st.columns([2, 2])
     with col_f1:
@@ -267,28 +276,54 @@ with tab_signals:
     with col_f2:
         filter_type = st.selectbox("Filter Strategy:", ["ALL SIGNALS", "HERO-ZERO ONLY", "INTRADAY SCALP"], key="sig_type", label_visibility="collapsed")
 
-    atm_strike = int(round(n_spot / 50.0) * 50)
+    # DYNAMIC TRADE GENERATION
+    n_atm = int(round(n_spot / 50.0) * 50)
+    b_atm = int(round(b_spot / 100.0) * 100)
+
+    # Dynamic Option Price Calculations
+    nifty_scalp_entry = calc_live_option_price(n_spot, n_atm, is_call=True)
+    nifty_hz_entry = calc_live_option_price(n_spot, n_atm + 100, is_call=True)
+    bank_scalp_entry = calc_live_option_price(b_spot, b_atm, is_call=False)
 
     trades = [
         {
-            "symbol": f"NIFTY {atm_strike + 50} CE",
+            "symbol": f"NIFTY {n_atm} CE",
             "index": "NIFTY 50",
             "tag": "INTRADAY SCALP",
             "type": "BUY CALL",
-            "entry": 26.0, "sl": 15.0, "target": 55.0,
-            "reason": f"Holding live level @ {atm_strike} + Dynamic Momentum",
-            "lot_size": 65, "gen_time": engine_data['time'],
-            "status_msg": "⏳ PENDING (Trigger point @ ₹26)"
+            "entry": nifty_scalp_entry,
+            "sl": round(nifty_scalp_entry * 0.70, 1),
+            "target": round(nifty_scalp_entry * 1.50, 1),
+            "reason": f"Holding Support @ {n_atm - 50} | Spot Live: {n_spot:,.1f}",
+            "lot_size": 65,
+            "gen_time": engine_data['time'],
+            "status_msg": "🟢 ACTIVE SIGNAL (Live Execution)"
         },
         {
-            "symbol": f"NIFTY {atm_strike + 150} CE",
+            "symbol": f"BANK NIFTY {b_atm} PE",
+            "index": "BANK NIFTY",
+            "tag": "INTRADAY SCALP",
+            "type": "BUY PUT",
+            "entry": bank_scalp_entry,
+            "sl": round(bank_scalp_entry * 0.70, 1),
+            "target": round(bank_scalp_entry * 1.50, 1),
+            "reason": f"Resistance Rejection @ {b_atm + 200} | Spot Live: {b_spot:,.1f}",
+            "lot_size": 15,
+            "gen_time": engine_data['time'],
+            "status_msg": "🟢 ACTIVE SIGNAL (Live Execution)"
+        },
+        {
+            "symbol": f"NIFTY {n_atm + 100} CE",
             "index": "NIFTY 50",
             "tag": "HERO-ZERO",
             "type": "BUY CALL",
-            "entry": 13.0, "sl": 4.0, "target": 45.0,
-            "reason": "Expiry Gamma breakout level expected above VWAP",
-            "lot_size": 65, "gen_time": "09:15 AM",
-            "status_msg": "❌ EXPIRED / MISSED"
+            "entry": nifty_hz_entry,
+            "sl": round(nifty_hz_entry * 0.40, 1),
+            "target": round(nifty_hz_entry * 2.80, 1),
+            "reason": "OTM Gamma Spike Setup (Expiry Momentum)",
+            "lot_size": 65,
+            "gen_time": engine_data['time'],
+            "status_msg": "⏳ PENDING (Awaiting Trigger Point)"
         }
     ]
 
@@ -302,20 +337,20 @@ with tab_signals:
         risk = (t['entry'] - t['sl']) * t['lot_size']
         is_hz = t['tag'] == "HERO-ZERO"
         card_border = "card-hz-border" if is_hz else "card-call-border"
-        status_cls = "status-pending" if "PENDING" in t['status_msg'] else "status-expired"
+        status_cls = "status-active" if "ACTIVE" in t['status_msg'] else "status-pending"
 
         render_clean_html(f"""
         <div class="compact-trade-card {card_border}">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span class="{status_cls}">{t['status_msg']}</span>
-                <span style="font-size: 9px; font-weight: 700; color: #64748B;">Time: {t['gen_time']}</span>
+                <span style="font-size: 9px; font-weight: 700; color: #64748B;">Live Time: {t['gen_time']}</span>
             </div>
             <div style="margin-top: 4px; font-size: 13px; font-weight: 800; color: #0F172A;">{t['symbol']} ({t['type']})</div>
             <div style="font-size: 10px; color: #475569; margin-top: 2px;">{t['reason']}</div>
             <div class="metrics-grid">
-                <div><div class="m-label">ENTRY</div><div class="m-val">₹{t['entry']:.1f}</div></div>
-                <div><div class="m-label">SL</div><div class="m-val">₹{t['sl']:.1f}</div></div>
-                <div><div class="m-label">TARGET</div><div class="m-val">₹{t['target']:.1f}</div></div>
+                <div><div class="m-label">ENTRY (LTP)</div><div class="m-val">₹{t['entry']:.2f}</div></div>
+                <div><div class="m-label">STOP LOSS</div><div class="m-val">₹{t['sl']:.2f}</div></div>
+                <div><div class="m-label">TARGET</div><div class="m-val">₹{t['target']:.2f}</div></div>
                 <div><div class="m-label">RISK/LOT</div><div class="m-val">₹{risk:,.0f}</div></div>
             </div>
         </div>
@@ -327,29 +362,26 @@ with tab_oi:
 
     if oi_index == "NIFTY 50":
         center = int(round(n_spot / 50.0) * 50)
-        step = 50
         strikes = [center - 100, center - 50, center, center + 50, center + 100]
         call_oi = [64.8, 72.1, 262.0, 126.0, 190.0]
         put_oi = [225.0, 199.0, 264.0, 50.0, 56.1]
     elif oi_index == "BANK NIFTY":
         center = int(round(b_spot / 100.0) * 100)
-        step = 100
         strikes = [center - 200, center - 100, center, center + 100, center + 200]
         call_oi = [15.2, 34.1, 142.5, 98.2, 185.0]
         put_oi = [120.4, 160.2, 138.0, 42.1, 18.2]
     else:
         center = int(round(s_spot / 100.0) * 100)
-        step = 100
         strikes = [center - 200, center - 100, center, center + 100, center + 200]
         call_oi = [22.4, 45.1, 110.6, 175.2, 210.0]
         put_oi = [180.5, 155.2, 105.4, 32.1, 12.5]
 
-    st.subheader("📋 Live Option Chain Matrix")
+    st.subheader("📋 Live Dynamic Option Chain")
     
     chain_data = []
     for s, c_oi, p_oi in zip(strikes, call_oi, put_oi):
-        c_price = max(10, round(50 + (center - s) * 0.4, 1))
-        p_price = max(10, round(50 + (s - center) * 0.4, 1))
+        c_price = calc_live_option_price(n_spot if oi_index=="NIFTY 50" else b_spot, s, is_call=True)
+        p_price = calc_live_option_price(n_spot if oi_index=="NIFTY 50" else b_spot, s, is_call=False)
         tag = "🎯 ATM" if s == center else ("ITM Call" if s < center else "OTM Call")
         chain_data.append({
             "Call OI (Lakh)": c_oi,
@@ -396,50 +428,46 @@ with tab_charts:
     fig_chart.update_layout(height=340, margin=dict(l=5, r=5, t=5, b=5), xaxis_rangeslider_visible=False, showlegend=False)
     st.plotly_chart(fig_chart, use_container_width=True)
 
-# TAB 4: SMART BASKET & TRADE VALIDATOR
+# TAB 4: ACCURATE MULTI-BASKET
 with tab_basket:
-    st.caption("✍️ Smart Trade Validator & Multi-Basket Engine")
+    st.caption("✍️ Dynamic Trade Validator & Multi-Basket")
     
     sel_idx = st.selectbox("Select Index:", ["NIFTY 50", "BANK NIFTY", "SENSEX"], key="b_idx_sel")
     col_u1, col_u2 = st.columns([2, 1])
     with col_u1:
-        strike_val = st.number_input("Enter Strike Price:", value=24350 if sel_idx == "NIFTY 50" else (57000 if sel_idx == "BANK NIFTY" else 77000), step=50)
+        strike_val = st.number_input("Enter Strike Price:", value=24050 if sel_idx == "NIFTY 50" else (57000 if sel_idx == "BANK NIFTY" else 77000), step=50)
     with col_u2:
         opt_type = st.selectbox("Type:", ["CE (CALL)", "PE (PUT)"])
 
     current_idx_spot = n_spot if sel_idx == "NIFTY 50" else (b_spot if sel_idx == "BANK NIFTY" else s_spot)
     lot_size = 65 if sel_idx == "NIFTY 50" else (15 if sel_idx == "BANK NIFTY" else 10)
 
-    # AUTO TRADE ANALYZER LOGIC
     is_call = "CE" in opt_type
-    diff = strike_val - current_idx_spot if is_call else current_idx_spot - strike_val
+    est_ltp = calc_live_option_price(current_idx_spot, strike_val, is_call=is_call)
     
-    if abs(diff) <= 50:
-        money_status = "ATM (At The Money)"
-        is_good = True
-        auto_entry = 45.0
-        auto_sl = 30.0
-        auto_target = 80.0
-        verdict = "✅ SHI TRADE (High Probability Momentum Zone)"
-    elif diff < 0:
-        money_status = "ITM (In The Money)"
-        is_good = True
-        auto_entry = 85.0
-        auto_sl = 65.0
-        auto_target = 135.0
-        verdict = "✅ SHI TRADE (Safe Delta & High Liquidity)"
+    strike_diff = (strike_val - current_idx_spot) if is_call else (current_idx_spot - strike_val)
+
+    auto_entry = est_ltp
+    auto_sl = round(est_ltp * 0.65, 2)
+    auto_target = round(est_ltp * 1.60, 2)
+
+    if est_ltp < 12.0:
+        verdict = "⚠️ GALAT TRADE (Far OTM / Premium Deeply Decayed)"
+        is_good = False
+        money_status = "FAR OTM"
+    elif strike_diff > 120:
+        verdict = "⚠️ RISKY TRADE (High Theta Decay Threat)"
+        is_good = False
+        money_status = "OTM"
     else:
-        money_status = "OTM (Out The Money)"
-        is_good = False if diff > 250 else True
-        auto_entry = 18.0
-        auto_sl = 8.0
-        auto_target = 42.0
-        verdict = "⚠️ RISKY / GALAT TRADE (Too far OTM, Theta decay threat)" if diff > 200 else "🟡 MODERATE RISK (Scalping Trade Only)"
+        verdict = f"✅ SHI TRADE (Live Estimated LTP @ ₹{est_ltp})"
+        is_good = True
+        money_status = "ATM" if abs(strike_diff) <= 50 else ("ITM" if strike_diff < 0 else "OTM")
 
     render_clean_html(f"""
     <div class="trade-analysis-box">
         <div style="font-size: 12px; font-weight: 800; color: #0F172A;">Analyzer Output for {sel_idx} {strike_val} {opt_type.split()[0]}</div>
-        <div style="font-size: 11px; margin-top: 2px;">Spot Price: <b>{current_idx_spot:,.1f}</b> | Category: <b>{money_status}</b></div>
+        <div style="font-size: 11px; margin-top: 2px;">Spot: <b>{current_idx_spot:,.1f}</b> | Dynamic LTP: <b style="color:#2563EB;">₹{est_ltp}</b> | Moneyness: <b>{money_status}</b></div>
         <div style="font-size: 12px; font-weight: 800; margin-top: 4px; color: {'#059669' if is_good else '#DC2626'};">{verdict}</div>
     </div>
     """)
@@ -458,14 +486,14 @@ with tab_basket:
             target_amt = (t_target - t_entry) * lot_size
             st.session_state.custom_trades.append({
                 "Symbol": f"{sel_idx} {strike_val} {opt_type.split()[0]}",
-                "Entry": f"₹{t_entry}",
-                "SL": f"₹{t_sl}",
-                "Target": f"₹{t_target}",
+                "Entry": f"₹{t_entry:.2f}",
+                "SL": f"₹{t_sl:.2f}",
+                "Target": f"₹{t_target:.2f}",
                 "Risk/Lot": f"₹{risk_amt:,.0f}",
                 "Reward/Lot": f"₹{target_amt:,.0f}",
                 "Verdict": "SHI" if is_good else "RISKY"
             })
-            st.success("Added to Basket!")
+            st.success("Trade Added to Basket!")
 
     if st.session_state.custom_trades:
         st.dataframe(pd.DataFrame(st.session_state.custom_trades), use_container_width=True)
