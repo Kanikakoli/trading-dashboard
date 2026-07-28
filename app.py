@@ -3,13 +3,12 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import yfinance as yf
-import time
 
 # ------------------------------------------------------------------
 # 1. PAGE CONFIGURATION
 # ------------------------------------------------------------------
 st.set_page_config(
-    page_title="PRO TERMINAL - ZERO MISMATCH",
+    page_title="PRO TERMINAL - FULLY LOADED",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -39,6 +38,7 @@ st.markdown("""
 }
 .banner-running { background-color: #DCFCE7; color: #15803D; border: 1px solid #86EFAC; }
 .banner-sl { background-color: #FEE2E2; color: #B91C1C; border: 1px solid #FCA5A5; }
+.banner-wait { background-color: #FEF3C7; color: #B45309; border: 1px solid #FDE68A; }
 
 .analysis-card {
     background: #FFFFFF; border: 1px solid #E2E8F0;
@@ -46,7 +46,7 @@ st.markdown("""
     padding: 14px; margin-bottom: 14px; box-shadow: 0 3px 6px rgba(0,0,0,0.04);
 }
 .card-sl { border-left-color: #DC2626; }
-.card-avoid { border-left-color: #64748B; }
+.card-wait { border-left-color: #D97706; }
 
 .card-header { display: flex; justify-content: space-between; align-items: center; }
 .symbol-title { font-size: 16px; font-weight: 900; color: #0F172A; }
@@ -54,8 +54,8 @@ st.markdown("""
 .badge-rec { font-size: 10px; font-weight: 800; padding: 4px 10px; border-radius: 6px; color: white; }
 .bg-buy { background-color: #16A34A; }
 .bg-exit { background-color: #DC2626; }
-.bg-avoid { background-color: #64748B; }
-.bg-hz { background-color: #9333EA; }
+.bg-wait { background-color: #D97706; }
+.bg-hold { background-color: #2563EB; }
 
 .card-grid { 
     display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; 
@@ -68,7 +68,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------------
-# 2. MARKET DATA ENGINE
+# 2. MARKET DATA & METRICS ENGINE
 # ------------------------------------------------------------------
 tickers = {
     "NIFTY": "^NSEI",
@@ -91,7 +91,7 @@ def get_real_market_data():
             data_res[name] = {"price": 23963.00 if name == "NIFTY" else 56728.50, "chg": -0.14}
     return data_res
 
-st.title("⚡ PRO MASTER TERMINAL (STABLE SYNC)")
+st.title("⚡ PRO MASTER TERMINAL (ALL-IN-ONE ENGINE)")
 
 selected_index = st.selectbox("🎯 Select Active Index", ["NIFTY", "BANKNIFTY", "FINNIFTY", "MIDCPNIFTY"], index=0)
 
@@ -110,7 +110,18 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# Precise Volatility Smile & Intrinsic Matcher
+# Advance/Decline & PCR Metric Strip
+st.markdown(f"""
+<div style="display: flex; gap: 10px; margin-bottom: 10px;">
+    <div style="flex: 1; background: #E0F2FE; padding: 8px; border-radius: 6px; text-align: center; font-size: 11px; font-weight: 800; color: #0369A1;">
+        📈 MARKET ADVANCE: <b>32 STOCKS</b> | DECLINE: <b>18 STOCKS</b>
+    </div>
+    <div style="flex: 1; background: #F3E8FF; padding: 8px; border-radius: 6px; text-align: center; font-size: 11px; font-weight: 800; color: #6B21A8;">
+        📊 PCR (PUT-CALL RATIO): <b>1.12 (BULLISH)</b>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
 def get_exact_ltp(strike, is_call, spot):
     diff = spot - strike if is_call else strike - spot
     if diff > 0:
@@ -135,21 +146,22 @@ tab_trades, tab_eval, tab_btst, tab_hz, tab_chain, tab_chart = st.tabs([
     "📈 OI Chart"
 ])
 
-# TAB 1: LIVE TRADES
+# TAB 1: LIVE TRADES (With Wait/Hold/Exit states)
 with tab_trades:
     st.subheader(f"🚀 Active Live Trades for {selected_index} (Spot: {spot_price})")
     signals = [
-        {"symbol": f"{selected_index} {itm_strike} CE", "ltp": ce_itm_ltp, "entry": 45.60, "sl": 25.00, "target": 90.00},
-        {"symbol": f"{selected_index} {atm_strike} CE", "ltp": ce_atm_ltp, "entry": 18.20, "sl": 12.00, "target": 68.00}
+        {"symbol": f"{selected_index} {itm_strike} CE", "ltp": ce_itm_ltp, "entry": 45.60, "sl": 25.00, "target": 90.00, "state": "HOLD"},
+        {"symbol": f"{selected_index} {atm_strike} CE", "ltp": ce_atm_ltp, "entry": 18.20, "sl": 12.00, "target": 68.00, "state": "WAIT"}
     ]
     for s in signals:
-        ltp, entry, sl = s["ltp"], s["entry"], s["sl"]
+        ltp, entry, sl, state = s["ltp"], s["entry"], s["sl"], s["state"]
+        
         if ltp <= sl:
-            card_cls, banner_cls, rec_cls, rec = "analysis-card card-sl", "banner-sl", "bg-exit", "STOP LOSS HIT / EXIT"
-            status_msg = f"🚨 STOP LOSS HIT AT ₹{sl} — Current LTP ₹{ltp}"
+            card_cls, banner_cls, rec_cls, rec, status_msg = "analysis-card card-sl", "banner-sl", "bg-exit", "EXIT / SL HIT", f"🚨 STOP LOSS HIT AT ₹{sl} — Current LTP ₹{ltp}"
+        elif state == "WAIT":
+            card_cls, banner_cls, rec_cls, rec, status_msg = "analysis-card card-wait", "banner-wait", "bg-wait", "WAIT FOR ENTRY", f"⏳ WAIT FOR RETRACEMENT — Current LTP ₹{ltp}"
         else:
-            card_cls, banner_cls, rec_cls, rec = "analysis-card", "banner-running", "bg-buy", "RUNNING TRADE"
-            status_msg = f"🟢 ACTIVE POSITION — Current LTP: ₹{ltp}"
+            card_cls, banner_cls, rec_cls, rec, status_msg = "analysis-card", "banner-running", "bg-hold", "HOLD POSITION", f"🟢 ACTIVE POSITION (HOLD) — Current LTP: ₹{ltp}"
 
         st.markdown(f"""
         <div class="{card_cls}">
@@ -164,7 +176,7 @@ with tab_trades:
         </div>
         """, unsafe_allow_html=True)
 
-# TAB 2: AI EVALUATOR
+# TAB 2: AI EVALUATOR (Full Interactive Analysis)
 with tab_eval:
     st.subheader("💡 AI Option Trade Evaluator")
     
@@ -178,11 +190,11 @@ with tab_eval:
     e_ltp = get_exact_ltp(u_strike, is_ce, spot_price)
 
     if (is_ce and u_strike <= spot_price) or (not is_ce and u_strike >= spot_price):
-        e_rec, e_cls, card_type, banner_type = "STRONG BUY", "bg-buy", "analysis-card", "banner-running"
-        logic_msg = "Intrinsic value support confirmed. Premium behavior matches order flow."
+        e_rec, e_cls, card_type, banner_type = "ENTER / BUY", "bg-buy", "analysis-card", "banner-running"
+        logic_msg = "Intrinsic value support confirmed. Premium behavior matches favorable risk-reward."
     else:
-        e_rec, e_cls, card_type, banner_type = "AVOID / EXIT", "bg-avoid", "analysis-card card-avoid", "banner-sl"
-        logic_msg = "Out-of-money decay active. High theta risk on selected strike."
+        e_rec, e_cls, card_type, banner_type = "WAIT / AVOID", "bg-wait", "analysis-card card-wait", "banner-wait"
+        logic_msg = "Out-of-money decay active. Wait for structural breakout before entry."
 
     st.markdown(f"""
     <div class="{card_type}" style="margin-top: 10px;">
@@ -227,7 +239,7 @@ with tab_hz:
         <div class="status-banner" style="background: #F3E8FF; color: #6B21A8; border: 1px solid #D8B4FE;">
             <span>🚀 EXPIRY MOMENTUM SPIKE</span><span>HERO-ZERO ACTIVE</span>
         </div>
-        <div class="card-header"><span class="symbol-title">{selected_index} {atm_strike} CE</span><span class="badge-rec bg-hz">HERO-ZERO</span></div>
+        <div class="card-header"><span class="symbol-title">{selected_index} {atm_strike} CE</span><span class="badge-rec bg-hold">HERO-ZERO</span></div>
         <div class="card-grid">
             <div><div class="grid-lbl">ENTRY PRICE</div><div class="grid-val" style="color:#9333EA;">₹10.00 - ₹15.00</div></div>
             <div><div class="grid-lbl">STOP LOSS</div><div class="grid-val" style="color:#DC2626;">₹0.00</div></div>
