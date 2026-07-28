@@ -2,16 +2,18 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
+import plotly.express as px
 from datetime import datetime, timedelta
+import textwrap
 
 # ------------------------------------------------------------------
 # PAGE CONFIGURATION
 # ------------------------------------------------------------------
 st.set_page_config(
-    page_title="PRO TERMINAL v8.0 | Multi-Trade Edition",
-    page_icon="📊",
+    page_title="PRO TERMINAL v8.2 | Visual Edition",
+    page_icon="⚡",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
 # ------------------------------------------------------------------
@@ -31,335 +33,280 @@ if not st.session_state.authenticated:
     st.text_input("Enter Passcode:", type="password", key="passcode_input", on_change=check_passcode)
     st.stop()
 
+# Helper function for rendering HTML safe from indentation errors
+def render_html(html_str):
+    st.markdown(textwrap.dedent(html_str), unsafe_allow_html=True)
+
 # ------------------------------------------------------------------
-# COLORFUL LIGHT THEME CSS
+# STYLING (LIGHT & VIBRANT MODERN UI)
 # ------------------------------------------------------------------
-st.markdown("""
+render_html("""
 <style>
-    .stApp {
-        background: #F4F6F9;
-        color: #1F2937;
-        font-family: 'Inter', -apple-system, sans-serif;
-    }
+    .stApp { background-color: #F8FAFC; color: #0F172A; }
     
-    .ticker-box {
+    .card-call {
         background: #FFFFFF;
-        border: 1px solid #E5E7EB;
+        border-left: 6px solid #10B981;
         border-radius: 12px;
-        padding: 10px;
-        text-align: center;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-    }
-    .ticker-name { font-size: 11px; color: #6B7280; font-weight: 700; }
-    .ticker-price { font-size: 15px; font-weight: 800; color: #111827; margin: 2px 0; }
-    .ticker-up { color: #059669; font-weight: 700; font-size: 11px; }
-    .ticker-down { color: #DC2626; font-weight: 700; font-size: 11px; }
-
-    .signal-card-bull {
-        background: linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%);
-        border: 2px solid #10B981;
-        border-radius: 16px;
-        padding: 20px;
-        margin-bottom: 15px;
-        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.12);
-    }
-
-    .signal-card-bear {
-        background: linear-gradient(135deg, #FEF2F2 0%, #FEE2E2 100%);
-        border: 2px solid #EF4444;
-        border-radius: 16px;
-        padding: 20px;
-        margin-bottom: 15px;
-        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.12);
-    }
-
-    .badge-giant {
-        padding: 5px 14px;
-        border-radius: 30px;
-        font-size: 12px;
-        font-weight: 800;
-    }
-    .badge-call { background-color: #10B981; color: #FFFFFF; }
-    .badge-put { background-color: #EF4444; color: #FFFFFF; }
-
-    .metric-subcard {
-        background: rgba(255, 255, 255, 0.85);
-        border: 1px solid rgba(0, 0, 0, 0.06);
-        border-radius: 10px;
-        padding: 10px;
-        text-align: center;
-    }
-
-    .sentiment-box, .action-guidance-box {
-        background: #FFFFFF;
-        border: 1px solid #E5E7EB;
-        border-radius: 14px;
         padding: 16px;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        margin-bottom: 16px;
     }
-</style>
-""", unsafe_allow_html=True)
-
-# ------------------------------------------------------------------
-# DYNAMIC EXPIRY CALCULATOR
-# ------------------------------------------------------------------
-def get_next_weekday(weekday_idx):
-    today = datetime.now()
-    days_ahead = weekday_idx - today.weekday()
-    if days_ahead < 0:  
-        days_ahead += 7
-    return today + timedelta(days=days_ahead)
-
-# ------------------------------------------------------------------
-# HEADER & INDEX SELECTOR
-# ------------------------------------------------------------------
-title_col, index_col = st.columns([2, 1])
-with title_col:
-    st.title("📊 MULTI-TRADE PRO TERMINAL v8.0")
-with index_col:
-    selected_index = st.selectbox(
-        "🎯 Select Active Index:",
-        ["NIFTY 50 (Lot Size: 65)", "BANK NIFTY (Lot Size: 15)", "FINNIFTY (Lot Size: 25)", "SENSEX (Lot Size: 10)"],
-        index=0
-    )
-
-if "BANK NIFTY" in selected_index:
-    lot_size = 15
-    expiry_date = get_next_weekday(1).strftime("%d %b %Y (Tuesday)")
-elif "FINNIFTY" in selected_index:
-    lot_size = 25
-    expiry_date = get_next_weekday(1).strftime("%d %b %Y (Tuesday)")
-elif "SENSEX" in selected_index:
-    lot_size = 10
-    expiry_date = get_next_weekday(3).strftime("%d %b %Y (Thursday)")
-else:
-    lot_size = 65
-    expiry_date = get_next_weekday(1).strftime("%d %b %Y (Tuesday)")
-
-st.success(f"📅 **Active Weekly Expiry:** `{expiry_date}` | **Lot Size:** `{lot_size}`")
-
-# ------------------------------------------------------------------
-# 1. GLOBAL MARKET TICKERS
-# ------------------------------------------------------------------
-g1, g2, g3, g4, g5, g6 = st.columns(6)
-globals_data = [
-    ("GIFT NIFTY", "24,380.00", "▲ +120.00", "ticker-up", g1),
-    ("S&P 500", "5,560.20", "▲ +34.50", "ticker-up", g2),
-    ("NASDAQ", "18,240.10", "▲ +180.20", "ticker-up", g3),
-    ("NIKKEI 225", "38,910.50", "▼ -45.00", "ticker-down", g4),
-    ("HANG SENG", "17,650.00", "▲ +85.30", "ticker-up", g5),
-    ("INDIA VIX", "13.20", "▼ -2.40%", "ticker-down", g6)
-]
-
-for name, val, change, tag, col in globals_data:
-    with col:
-        st.markdown(f"""
-<div class="ticker-box">
-    <div class="ticker-name">{name}</div>
-    <div class="ticker-price">{val}</div>
-    <div class="{tag}">{change}</div>
-</div>
-""", unsafe_allow_html=True)
-
-st.markdown("<br>", unsafe_allow_html=True)
-
-# ------------------------------------------------------------------
-# 2. MULTI-TRADE ENGINE & SIDEBAR METRICS
-# ------------------------------------------------------------------
-col_left, col_right = st.columns([1.3, 1])
-
-with col_left:
-    analysis_mode = st.radio(
-        "⚙️ Select Engine View:",
-        ["🤖 Auto Multi-Signal Dashboard", "✍️ Custom Portfolio Manager"],
-        horizontal=True
-    )
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # ------------------------------------------------------------------
-    # MODE 1: MULTIPLE SIGNALS DASHBOARD
-    # ------------------------------------------------------------------
-    if "Auto Multi-Signal" in analysis_mode:
-        st.markdown("### ⚡ Live Signal Queue (Multiple Opportunities)")
-
-        trades = [
-            {
-                "symbol": "NIFTY 24300 CE",
-                "type": "BUY CALL",
-                "badge_class": "badge-call",
-                "card_class": "signal-card-bull",
-                "entry": 110.0, "sl": 90.0, "target": 150.0,
-                "reason": "Heavy Put Writing @ 24300 + VWAP Breakout",
-                "lot_size": 65
-            },
-            {
-                "symbol": "BANKNIFTY 52200 PE",
-                "type": "BUY PUT",
-                "badge_class": "badge-put",
-                "card_class": "signal-card-bear",
-                "entry": 240.0, "sl": 200.0, "target": 320.0,
-                "reason": "Call Writing Barrier @ 52500 + Bearish Divergence",
-                "lot_size": 15
-            },
-            {
-                "symbol": "SENSEX 80100 CE",
-                "type": "BUY CALL",
-                "badge_class": "badge-call",
-                "card_class": "signal-card-bull",
-                "entry": 310.0, "sl": 260.0, "target": 410.0,
-                "reason": "Expiry Gamma Squeeze + Short Covering",
-                "lot_size": 10
-            }
-        ]
-
-        for t in trades:
-            risk = t['entry'] - t['sl']
-            reward = t['target'] - t['entry']
-            rr = reward / risk if risk > 0 else 0
-            
-            st.markdown(f"""
-<div class="{t['card_class']}">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-        <span class="badge-giant {t['badge_class']}">{t['type']}</span>
-        <span style="font-weight: 700; font-size: 12px; color: #374151;">RR Ratio: <b>1:{rr:.1f}</b></span>
-    </div>
-    <h2 style="font-size: 22px; font-weight: 800; color: #111827; margin: 0 0 4px 0;">{t['symbol']}</h2>
-    <p style="font-size: 12px; font-weight: 600; color: #4B5563; margin-bottom: 12px;">⚡ Trigger: {t['reason']}</p>
     
-    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
-        <div class="metric-subcard">
-            <div style="font-size: 10px; color: #6B7280; font-weight:700;">STOP LOSS</div>
-            <div style="font-size: 16px; font-weight: 900; color: #DC2626;">₹{t['sl']:.1f}</div>
-        </div>
-        <div class="metric-subcard">
-            <div style="font-size: 10px; color: #2563EB; font-weight:700;">BUY ENTRY</div>
-            <div style="font-size: 16px; font-weight: 900; color: #111827;">₹{t['entry']:.1f}</div>
-        </div>
-        <div class="metric-subcard">
-            <div style="font-size: 10px; color: #6B7280; font-weight:700;">TARGET</div>
-            <div style="font-size: 16px; font-weight: 900; color: #059669;">₹{t['target']:.1f}</div>
-        </div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-    # ------------------------------------------------------------------
-    # MODE 2: CUSTOM PORTFOLIO MANAGER (ADD MULTIPLE TRADES)
-    # ------------------------------------------------------------------
-    else:
-        st.markdown("### ✍️ Build Your Multi-Trade Portfolio")
-        
-        if 'custom_trades' not in st.session_state:
-            st.session_state.custom_trades = []
-
-        with st.form("add_trade_form"):
-            c1, c2, c3, c4 = st.columns(4)
-            with c1:
-                t_symbol = st.text_input("Strike/Option", "NIFTY 24400 CE")
-            with c2:
-                t_entry = st.number_input("Entry Price (₹)", value=100.0, step=5.0)
-            with c3:
-                t_sl = st.number_input("SL Points (₹)", value=20.0, step=2.0)
-            with c4:
-                t_target = st.number_input("Target Points (₹)", value=40.0, step=5.0)
-
-            c_lots = st.number_input("Lots", value=2, step=1)
-            submitted = st.form_submit_button("➕ Add Trade to Basket")
-
-            if submitted:
-                st.session_state.custom_trades.append({
-                    "Symbol": t_symbol,
-                    "Lots": c_lots,
-                    "Qty": c_lots * lot_size,
-                    "Entry": t_entry,
-                    "Total Investment": c_lots * lot_size * t_entry,
-                    "Max Risk (₹)": c_lots * lot_size * t_sl,
-                    "Max Profit (₹)": c_lots * lot_size * t_target
-                })
-                st.success(f"Added {t_symbol} to Basket!")
-
-        if st.session_state.custom_trades:
-            st.markdown("#### 🛒 Active Trade Basket")
-            df = pd.DataFrame(st.session_state.custom_trades)
-            st.dataframe(df, use_container_width=True)
-
-            tot_risk = df["Max Risk (₹)"].sum()
-            tot_profit = df["Max Profit (₹)"].sum()
-            tot_invested = df["Total Investment"].sum()
-
-            m1, m2, m3 = st.columns(3)
-            m1.metric("Total Capital Used", f"₹{tot_invested:,.2f}")
-            m2.metric("Total Portfolio Risk", f"₹{tot_risk:,.2f}")
-            m3.metric("Total Profit Target", f"₹{tot_profit:,.2f}")
-
-            if st.button("🗑️ Clear Basket"):
-                st.session_state.custom_trades = []
-                st.rerun()
+    .card-put {
+        background: #FFFFFF;
+        border-left: 6px solid #EF4444;
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        margin-bottom: 16px;
+    }
+    
+    .metric-pill {
+        background: #F1F5F9;
+        border-radius: 8px;
+        padding: 8px 12px;
+        text-align: center;
+    }
+    
+    .badge-bull { background-color: #10B981; color: white; padding: 4px 10px; border-radius: 20px; font-weight: 700; font-size: 12px; }
+    .badge-bear { background-color: #EF4444; color: white; padding: 4px 10px; border-radius: 20px; font-weight: 700; font-size: 12px; }
+</style>
+""")
 
 # ------------------------------------------------------------------
-# 3. RIGHT SIDE: PCR, ADVANCE-DECLINE & TIMING GUIDE
+# SIDEBAR CONTROL PANEL
 # ------------------------------------------------------------------
-with col_right:
-    st.markdown("#### 📊 MARKET BREADTH (PCR & A/D)")
-    st.markdown("""
-<div class="sentiment-box">
-    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-        <span style="font-size: 13px; font-weight: 700; color: #374151;">Put-Call Ratio (PCR):</span>
-        <span style="font-size: 14px; font-weight: 800; color: #059669;">1.28 (BULLISH)</span>
-    </div>
-    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-        <span style="font-size: 13px; font-weight: 700; color: #374151;">Advance / Decline Ratio:</span>
-        <span style="font-size: 14px; font-weight: 800; color: #2563EB;">38 Advances / 12 Declines</span>
-    </div>
-    <div style="display: flex; justify-content: space-between;">
-        <span style="font-size: 13px; font-weight: 700; color: #374151;">Max Pain Strike:</span>
-        <span style="font-size: 14px; font-weight: 800; color: #9333EA;">24,300 CE</span>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("#### ⏰ TRADING EXECUTION GUIDE")
-    st.markdown("""
-<div class="action-guidance-box">
-    <p style="margin: 0 0 8px 0; font-size: 12px; color: #1F2937;"><b>🟢 9:15 - 10:00 AM (WAIT):</b> Let opening high/low ranges settle before taking trade 1.</p>
-    <p style="margin: 0 0 8px 0; font-size: 12px; color: #1F2937;"><b>🚀 1:30 PM+ (BUY WINDOW):</b> Best time window for Expiry day Zero-Hero options.</p>
-    <p style="margin: 0 0 8px 0; font-size: 12px; color: #1F2937;"><b>🛡️ HOLD RULE:</b> Hold active trade while price trades above the VWAP level.</p>
-    <p style="margin: 0; font-size: 12px; color: #1F2937;"><b>⏳ 2:45 PM+ (SQUARE OFF):</b> Mandatory exit time for all intraday positions.</p>
-</div>
-""", unsafe_allow_html=True)
+with st.sidebar:
+    st.header("⚡ Terminal Controls")
+    selected_index = st.selectbox(
+        "🎯 Default Index:",
+        ["NIFTY 50", "BANK NIFTY", "FINNIFTY", "SENSEX"]
+    )
+    
+    st.divider()
+    st.subheader("💡 Execution Rules")
+    st.info("""
+    • **09:15 - 09:45:** Wait for Range Breakout  
+    • **13:30 Onwards:** Best Zero-Hero Window  
+    • **2:45 PM:** Mandatory Intraday Square Off  
+    """)
+    
+    if st.button("🔒 Lock Terminal", use_container_width=True):
+        st.session_state.authenticated = False
+        st.rerun()
 
 # ------------------------------------------------------------------
-# 4. CHART OVERVIEW
+# HEADER & GLOBAL TICKERS
 # ------------------------------------------------------------------
+st.title("📊 PRO OPTION TERMINAL v8.2")
+
+# Top Tickers with Streamlit Metrics
+t1, t2, t3, t4, t5 = st.columns(5)
+t1.metric("GIFT NIFTY", "24,380.0", "+120.0 (+0.5%)")
+t2.metric("S&P 500", "5,560.2", "+34.5 (+0.6%)")
+t3.metric("NASDAQ", "18,240.1", "+180.2 (+1.0%)")
+t4.metric("NIKKEI 225", "38,910.5", "-45.0 (-0.1%)", delta_color="inverse")
+t5.metric("INDIA VIX", "13.20", "-0.32 (-2.4%)", delta_color="inverse")
+
 st.divider()
-st.markdown("#### 📈 LIVE MULTI-ASSET CANDLESTICK CHART")
-
-dates = pd.date_range(end=pd.Timestamp.now(), periods=30, freq="5min")
-close_prices = np.cumsum(np.random.randn(30) * 1.5) + 24310
-open_prices = close_prices + np.random.randn(30) * 2
-high_prices = np.maximum(open_prices, close_prices) + np.random.rand(30) * 5
-low_prices = np.minimum(open_prices, close_prices) - np.random.rand(30) * 5
-
-fig = go.Figure(data=[go.Candlestick(
-    x=dates, open=open_prices, high=high_prices, low=low_prices, close=close_prices,
-    name="Index", increasing_line_color='#10B981', decreasing_line_color='#EF4444'
-)])
-
-fig.update_layout(
-    template="plotly_white",
-    height=320,
-    margin=dict(l=10, r=10, t=10, b=10),
-    xaxis_rangeslider_visible=False
-)
-
-st.plotly_chart(fig, use_container_width=True)
 
 # ------------------------------------------------------------------
-# LOCK TERMINAL
+# MAIN TABS ARCHITECTURE
 # ------------------------------------------------------------------
-st.markdown("---")
-if st.button("🔒 Lock Terminal"):
-    st.session_state.authenticated = False
-    st.rerun()
+tab_signals, tab_breadth, tab_portfolio = st.tabs([
+    "⚡ Active Trade Signals", 
+    "📊 Market Sentiment & Breadth", 
+    "✍️ Multi-Trade Portfolio Builder"
+])
 
+# ------------------------------------------------------------------
+# TAB 1: LIVE SIGNALS WITH VISUAL RISK/REWARD
+# ------------------------------------------------------------------
+with tab_signals:
+    filter_col, search_col = st.columns([1, 2])
+    with filter_col:
+        filter_index = st.selectbox("Filter Signals By:", ["ALL", "NIFTY 50", "BANK NIFTY", "SENSEX"])
+
+    trades = [
+        {
+            "symbol": "NIFTY 24300 CE",
+            "index": "NIFTY 50",
+            "type": "BUY CALL",
+            "entry": 110.0, "sl": 90.0, "target": 150.0,
+            "reason": "Heavy Put Writing @ 24300 + VWAP Breakout",
+            "lot_size": 65
+        },
+        {
+            "symbol": "BANKNIFTY 52200 PE",
+            "index": "BANK NIFTY",
+            "type": "BUY PUT",
+            "entry": 240.0, "sl": 200.0, "target": 320.0,
+            "reason": "Call Writing Barrier @ 52500 + Bearish Divergence",
+            "lot_size": 15
+        },
+        {
+            "symbol": "SENSEX 80100 CE",
+            "index": "SENSEX",
+            "type": "BUY CALL",
+            "entry": 310.0, "sl": 260.0, "target": 410.0,
+            "reason": "Expiry Gamma Squeeze + Short Covering",
+            "lot_size": 10
+        }
+    ]
+
+    filtered_trades = [t for t in trades if filter_index == "ALL" or t["index"] == filter_index]
+
+    for t in filtered_trades:
+        risk = t['entry'] - t['sl']
+        reward = t['target'] - t['entry']
+        rr_ratio = reward / risk if risk > 0 else 0
+        is_call = "CALL" in t['type']
+
+        card_class = "card-call" if is_call else "card-put"
+        badge_class = "badge-bull" if is_call else "badge-bear"
+
+        with st.container():
+            render_html(f"""
+            <div class="{card_class}">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span class="{badge_class}">{t['type']}</span>
+                    <span style="font-weight: 800; font-size: 13px; color: #475569;">RR Ratio: 1:{rr_ratio:.1f}</span>
+                </div>
+                <h3 style="margin: 0 0 6px 0; color: #0F172A; font-weight: 800;">{t['symbol']}</h3>
+                <p style="margin: 0 0 12px 0; color: #64748B; font-size: 13px;">💡 <b>Trigger:</b> {t['reason']}</p>
+            </div>
+            """)
+
+            # Metric Columns
+            mc1, mc2, mc3, mc4 = st.columns(4)
+            mc1.metric("SL Level", f"₹{t['sl']:.1f}", f"-₹{risk:.1f}", delta_color="inverse")
+            mc2.metric("Buy Price", f"₹{t['entry']:.1f}")
+            mc3.metric("Target Level", f"₹{t['target']:.1f}", f"+₹{reward:.1f}")
+            mc4.metric("Per Lot Risk", f"₹{risk * t['lot_size']:,.0f}", f"Target: ₹{reward * t['lot_size']:,.0f}")
+
+            # Visual Risk vs Profit Bar Chart
+            fig_bar = go.Figure()
+            fig_bar.add_trace(go.Bar(
+                y=['Trade Range'], x=[risk], name='Max Risk (Points)',
+                orientation='h', marker=dict(color='#EF4444')
+            ))
+            fig_bar.add_trace(go.Bar(
+                y=['Trade Range'], x=[reward], name='Max Profit (Points)',
+                orientation='h', marker=dict(color='#10B981')
+            ))
+            fig_bar.update_layout(
+                barmode='stack', height=80, margin=dict(l=0, r=0, t=0, b=0),
+                showlegend=True, legend=dict(orientation="h", y=1.2)
+            )
+            st.plotly_chart(fig_bar, use_container_width=True, key=f"bar_{t['symbol']}")
+            st.divider()
+
+# ------------------------------------------------------------------
+# TAB 2: MARKET BREADTH & VISUAL GAUGE METERS
+# ------------------------------------------------------------------
+with tab_breadth:
+    col_gauge, col_ad = st.columns(2)
+
+    with col_gauge:
+        st.subheader("🎯 Put-Call Ratio (PCR) Gauge")
+        pcr_val = 1.28
+        
+        fig_pcr = go.Figure(go.Indicator(
+            mode="gauge+number",
+            value=pcr_val,
+            title={'text': "PCR Sentiment Index"},
+            gauge={
+                'axis': {'range': [0, 2], 'tickwidth': 1},
+                'bar': {'color': "#10B981"},
+                'steps': [
+                    {'range': [0, 0.7], 'color': '#FEE2E2'},    # Bearish
+                    {'range': [0.7, 1.1], 'color': '#FEF3C7'},  # Neutral
+                    {'range': [1.1, 2.0], 'color': '#D1FAE5'}   # Bullish
+                ],
+                'threshold': {
+                    'line': {'color': "black", 'width': 4},
+                    'thickness': 0.75,
+                    'value': pcr_val
+                }
+            }
+        ))
+        fig_pcr.update_layout(height=280, margin=dict(l=20, r=20, t=30, b=20))
+        st.plotly_chart(fig_pcr, use_container_width=True)
+
+    with col_ad:
+        st.subheader("📊 Market Advance / Decline Split")
+        advances, declines = 38, 12
+        
+        fig_pie = px.pie(
+            values=[advances, declines],
+            names=['Advances (38)', 'Declines (12)'],
+            color_discrete_sequence=['#10B981', '#EF4444'],
+            hole=0.5
+        )
+        fig_pie.update_layout(height=280, margin=dict(l=20, r=20, t=30, b=20))
+        st.plotly_chart(fig_pie, use_container_width=True)
+
+    # Live Candlestick Chart
+    st.subheader("📈 Live NIFTY 5-Min Chart")
+    dates = pd.date_range(end=pd.Timestamp.now(), periods=30, freq="5min")
+    close_prices = np.cumsum(np.random.randn(30) * 1.5) + 24310
+    open_prices = close_prices + np.random.randn(30) * 2
+    high_prices = np.maximum(open_prices, close_prices) + np.random.rand(30) * 5
+    low_prices = np.minimum(open_prices, close_prices) - np.random.rand(30) * 5
+
+    fig_candle = go.Figure(data=[go.Candlestick(
+        x=dates, open=open_prices, high=high_prices, low=low_prices, close=close_prices,
+        increasing_line_color='#10B981', decreasing_line_color='#EF4444'
+    )])
+    fig_candle.update_layout(template="plotly_white", height=350, margin=dict(l=10, r=10, t=10, b=10), xaxis_rangeslider_visible=False)
+    st.plotly_chart(fig_candle, use_container_width=True)
+
+# ------------------------------------------------------------------
+# TAB 3: MULTI-TRADE PORTFOLIO BUILDER
+# ------------------------------------------------------------------
+with tab_portfolio:
+    st.subheader("✍️ Add Multiple Custom Positions")
+    
+    if 'custom_trades' not in st.session_state:
+        st.session_state.custom_trades = []
+
+    with st.form("add_trade_form_v2"):
+        c1, c2, c3, c4, c5 = st.columns(5)
+        with c1:
+            t_symbol = st.text_input("Option Strike", "NIFTY 24400 CE")
+        with c2:
+            t_entry = st.number_input("Entry Price (₹)", value=100.0, step=5.0)
+        with c3:
+            t_sl = st.number_input("SL Points (₹)", value=20.0, step=2.0)
+        with c4:
+            t_target = st.number_input("Target Points (₹)", value=40.0, step=5.0)
+        with c5:
+            c_lots = st.number_input("Lots", value=2, step=1)
+
+        submitted = st.form_submit_button("➕ Add Position", use_container_width=True)
+
+        if submitted:
+            st.session_state.custom_trades.append({
+                "Symbol": t_symbol,
+                "Lots": c_lots,
+                "Entry": t_entry,
+                "Max Risk (₹)": c_lots * 65 * t_sl,
+                "Max Profit (₹)": c_lots * 65 * t_target
+            })
+            st.success(f"Added {t_symbol} to Portfolio!")
+
+    if st.session_state.custom_trades:
+        df = pd.DataFrame(st.session_state.custom_trades)
+        st.dataframe(df, use_container_width=True)
+
+        tot_risk = df["Max Risk (₹)"].sum()
+        tot_profit = df["Max Profit (₹)"].sum()
+
+        m1, m2 = st.columns(2)
+        m1.metric("Total Portfolio Risk", f"₹{tot_risk:,.2f}", delta_color="inverse")
+        m2.metric("Total Potential Profit", f"₹{tot_profit:,.2f}")
+
+        if st.button("🗑️ Clear Basket"):
+            st.session_state.custom_trades = []
+            st.rerun()
