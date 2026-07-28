@@ -19,6 +19,26 @@ st.markdown("""
 .stApp { background-color: #F8FAFC; color: #0F172A; }
 .block-container { padding: 0.4rem 0.4rem !important; max-width: 100% !important; }
 
+/* Flexbox layout for compact side-by-side indices */
+.ticker-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 6px;
+}
+.ticker-box {
+    flex: 1 1 30%;
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 6px;
+    padding: 4px;
+    text-align: center;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+}
+.t-title { font-size: 8px; color: #64748B; font-weight: 800; }
+.t-val { font-size: 10px; color: #0F172A; font-weight: 900; margin: 1px 0; }
+.t-chg { font-size: 8px; font-weight: 800; }
+
 .status-banner {
     padding: 5px 10px; border-radius: 5px; font-size: 10px;
     font-weight: 800; margin-bottom: 6px; display: flex;
@@ -87,34 +107,19 @@ market_data = get_real_market_data()
 index_options = ["ALL INDICES"] + list(tickers.keys())
 selected_index = st.selectbox("🎯 Select Active Index", index_options, index=0)
 
-# Native Grid Layout using Streamlit Columns to completely avoid string printing bugs
-row1_cols = st.columns(3)
-items = list(market_data.items())
-
-for i in range(3):
-    name, info = items[i]
+# Render all indices inside a single unified HTML block to completely bypass Streamlit markdown parsing text-bugs
+html_tickers = '<div class="ticker-container">'
+for name, info in market_data.items():
     color = "#16A34A" if info['chg'] >= 0 else "#DC2626"
-    with row1_cols[i]:
-        st.markdown(f"""
-        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 6px; padding: 4px; text-align: center; margin-bottom: 4px;">
-            <div style="font-size: 8px; color: #64748B; font-weight: 800;">{name}</div>
-            <div style="font-size: 10px; color: #0F172A; font-weight: 900;">{info['price']}</div>
-            <div style="font-size: 8px; font-weight: 800; color: {color};">{info['chg']}%</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-row2_cols = st.columns(3)
-for i in range(3, 6):
-    name, info = items[i]
-    color = "#16A34A" if info['chg'] >= 0 else "#DC2626"
-    with row2_cols[i-3]:
-        st.markdown(f"""
-        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 6px; padding: 4px; text-align: center; margin-bottom: 6px;">
-            <div style="font-size: 8px; color: #64748B; font-weight: 800;">{name}</div>
-            <div style="font-size: 10px; color: #0F172A; font-weight: 900;">{info['price']}</div>
-            <div style="font-size: 8px; font-weight: 800; color: {color};">{info['chg']}%</div>
-        </div>
-        """, unsafe_allow_html=True)
+    html_tickers += f"""
+    <div class="ticker-box">
+        <div class="t-title">{name}</div>
+        <div class="t-val">{info['price']}</div>
+        <div class="t-chg" style="color: {color};">{info['chg']}%</div>
+    </div>
+    """
+html_tickers += '</div>'
+st.markdown(html_tickers, unsafe_allow_html=True)
 
 # Advance / Decline & PCR Bar
 st.markdown("""
