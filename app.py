@@ -19,8 +19,8 @@ st.markdown("""
 .stApp { background-color: #F8FAFC; color: #0F172A; }
 .block-container { padding: 0.3rem 0.3rem !important; max-width: 100% !important; }
 
-/* Pure CSS Flexbox Grid for horizontal layout */
-.indices-row {
+/* Grid container to hold multiple cards side-by-side */
+.indices-container {
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
@@ -111,19 +111,12 @@ market_data = get_real_market_data()
 index_options = ["ALL INDICES"] + list(tickers.keys())
 selected_index = st.selectbox("🎯 Select Active Index", index_options, index=0)
 
-# Build a SINGLE combined HTML string to prevent Streamlit from rendering raw text tags
-html_output = '<div class="indices-row">'
-for name, info in market_data.items():
-    color = "#16A34A" if info['chg'] >= 0 else "#DC2626"
-    html_output += f"""
-    <div class="index-box">
-        <div class="idx-title">{name}</div>
-        <div class="idx-val">{info['price']}</div>
-        <div class="idx-chg" style="color: {color};">{info['chg']}%</div>
-    </div>
-    """
-html_output += '</div>'
-st.markdown(html_output, unsafe_allow_html=True)
+# Clean single-line list comprehension method to prevent raw tag printing
+cards_html = "".join([
+    f'<div class="index-box"><div class="idx-title">{name}</div><div class="idx-val">{info["price"]}</div><div class="idx-chg" style="color: {"#16A34A" if info["chg"] >= 0 else "#DC2626"};">{info["chg"]}%</div></div>'
+    for name, info in market_data.items()
+])
+st.markdown(f'<div class="indices-container">{cards_html}</div>', unsafe_allow_html=True)
 
 # Advance / Decline & PCR Bar
 st.markdown("""
