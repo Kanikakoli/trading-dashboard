@@ -1,14 +1,12 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.graph_objects as go
-import plotly.express as px
 
 # ------------------------------------------------------------------
 # PAGE CONFIG
 # ------------------------------------------------------------------
 st.set_page_config(
-    page_title="PRO TERMINAL v8.4 | Fixed Layout",
+    page_title="PRO TERMINAL v8.5",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -31,12 +29,11 @@ if not st.session_state.authenticated:
     st.text_input("Enter Passcode:", type="password", key="passcode_input", on_change=check_passcode)
     st.stop()
 
-# Helper function with explicit string clean-up
 def render_clean_html(html_str):
     st.markdown(html_str.strip(), unsafe_allow_html=True)
 
 # ------------------------------------------------------------------
-# COMPACT MOBILE CSS (ZERO INDENTATION INSIDE STRINGS)
+# COMPACT CSS
 # ------------------------------------------------------------------
 render_clean_html("""
 <style>
@@ -116,6 +113,27 @@ render_clean_html("""
 }
 .rr-risk { background: #EF4444; height: 100%; }
 .rr-reward { background: #10B981; height: 100%; }
+
+/* Sentiment Custom Cards */
+.sentiment-card {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 10px;
+}
+.pcr-progress-bg {
+    background: #E2E8F0;
+    height: 10px;
+    border-radius: 5px;
+    overflow: hidden;
+    margin-top: 6px;
+}
+.pcr-progress-fill {
+    background: #10B981;
+    height: 100%;
+    border-radius: 5px;
+}
 </style>
 """)
 
@@ -128,7 +146,7 @@ with st.sidebar:
         st.session_state.authenticated = False
         st.rerun()
 
-st.title("⚡ OPTION TERMINAL v8.4")
+st.title("⚡ OPTION TERMINAL v8.5")
 
 # ------------------------------------------------------------------
 # GLOBAL TICKERS
@@ -176,7 +194,7 @@ tab_signals, tab_breadth, tab_portfolio = st.tabs([
 # TAB 1: ACTIVE SIGNALS
 # ------------------------------------------------------------------
 with tab_signals:
-    filter_index = st.selectbox("Filter:", ["ALL", "NIFTY 50", "BANK NIFTY", "SENSEX"], label_visibility="collapsed")
+    filter_index = st.selectbox("Index Filter:", ["ALL", "NIFTY 50", "BANK NIFTY", "SENSEX"])
 
     trades = [
         {
@@ -220,7 +238,6 @@ with tab_signals:
         risk_pct = (risk / total_range) * 100
         reward_pct = (reward / total_range) * 100
 
-        # Zero indentation in HTML string prevents markdown conversion
         card_html = f"""<div class="compact-trade-card {card_border}">
 <div class="card-header-flex">
 <div><span class="{badge_pill}">{t['type']}</span><span style="font-size: 11px; font-weight: 700; color: #64748B; margin-left: 6px;">RR 1:{rr:.1f}</span></div>
@@ -243,36 +260,47 @@ with tab_signals:
         render_clean_html(card_html)
 
 # ------------------------------------------------------------------
-# TAB 2: MARKET BREADTH
+# TAB 2: MARKET BREADTH (CLEAN MOBILE DESIGN)
 # ------------------------------------------------------------------
 with tab_breadth:
-    col1, col2 = st.columns(2)
-    with col1:
-        st.caption("🎯 Put-Call Ratio (PCR)")
-        fig_pcr = go.Figure(go.Indicator(
-            mode="gauge+number",
-            value=1.28,
-            gauge={
-                'axis': {'range': [0, 2]},
-                'bar': {'color': "#10B981"},
-                'steps': [
-                    {'range': [0, 0.7], 'color': '#FEE2E2'},
-                    {'range': [0.7, 1.1], 'color': '#FEF3C7'},
-                    {'range': [1.1, 2.0], 'color': '#D1FAE5'}
-                ]
-            }
-        ))
-        fig_pcr.update_layout(height=200, margin=dict(l=10, r=10, t=10, b=10))
-        st.plotly_chart(fig_pcr, use_container_width=True)
+    # Sleek PCR Bar
+    pcr_val = 1.28
+    pcr_pct = min((pcr_val / 2.0) * 100, 100)
+    
+    render_clean_html(f"""
+    <div class="sentiment-card">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 13px; font-weight: 800; color: #0F172A;">🎯 Put-Call Ratio (PCR)</span>
+            <span style="font-size: 16px; font-weight: 800; color: #10B981;">{pcr_val} (Bullish)</span>
+        </div>
+        <div class="pcr-progress-bg">
+            <div class="pcr-progress-fill" style="width: {pcr_pct}%;"></div>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; margin-top: 4px;">
+            <span>0.0 (Bearish)</span>
+            <span>1.0 (Neutral)</span>
+            <span>2.0 (Bullish)</span>
+        </div>
+    </div>
+    """)
 
-    with col2:
-        st.caption("📊 Advance / Decline Split")
-        fig_pie = px.pie(
-            values=[38, 12], names=['Adv (38)', 'Dec (12)'],
-            color_discrete_sequence=['#10B981', '#EF4444'], hole=0.5
-        )
-        fig_pie.update_layout(height=200, margin=dict(l=10, r=10, t=10, b=10), showlegend=False)
-        st.plotly_chart(fig_pie, use_container_width=True)
+    # Advance / Decline Progress Bar
+    adv_count = 38
+    dec_count = 12
+    adv_pct = (adv_count / (adv_count + dec_count)) * 100
+
+    render_clean_html(f"""
+    <div class="sentiment-card">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 13px; font-weight: 800; color: #0F172A;">📊 Advance / Decline</span>
+            <span style="font-size: 12px; font-weight: 700;"><span style="color: #10B981;">{adv_count} Adv</span> / <span style="color: #EF4444;">{dec_count} Dec</span></span>
+        </div>
+        <div class="rr-bar-container" style="height: 10px; margin-top: 6px;">
+            <div class="rr-reward" style="width: {adv_pct}%;"></div>
+            <div class="rr-risk" style="width: {100 - adv_pct}%;"></div>
+        </div>
+    </div>
+    """)
 
 # ------------------------------------------------------------------
 # TAB 3: PORTFOLIO BASKET BUILDER
