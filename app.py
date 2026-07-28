@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 import yfinance as yf
 
 # ------------------------------------------------------------------
-# 1. PAGE CONFIGURATION & CSS
+# 1. PAGE CONFIGURATION & CS
 # ------------------------------------------------------------------
 st.set_page_config(
     page_title="PRO MASTER TERMINAL",
