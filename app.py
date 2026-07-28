@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import yfinance as yf
-from datetime import datetime
 
 # ------------------------------------------------------------------
 # 1. PAGE CONFIGURATION
@@ -69,7 +68,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------------
-# 2. ALL INDICES MARKET DATA ENGINE
+# 2. MARKET DATA ENGINE
 # ------------------------------------------------------------------
 tickers = {
     "NIFTY": "^NSEI",
@@ -91,28 +90,21 @@ def get_real_market_data():
             chg_pct = round(((price - prev_close) / prev_close) * 100, 2)
             data_res[name] = {"price": price, "chg": chg_pct}
         except:
-            fallback_prices = {"NIFTY": 23963.0, "BANKNIFTY": 51200.0, "FINNIFTY": 23400.0, "MIDCPNIFTY": 12500.0, "SENSEX": 78500.0, "NIFTY IT": 38200.0}
-            data_res[name] = {"price": fallback_prices.get(name, 20000.0), "chg": -0.15}
+            fallback = {"NIFTY": 24007.95, "BANKNIFTY": 51200.0, "FINNIFTY": 23400.0, "MIDCPNIFTY": 12500.0, "SENSEX": 78500.0, "NIFTY IT": 38200.0}
+            data_res[name] = {"price": fallback.get(name, 20000.0), "chg": 0.02}
     return data_res
 
-st.title("⚡ PRO MASTER TERMINAL (ALL INDICES & EXPIRY SYNC)")
+st.title("⚡ PRO MASTER TERMINAL (ALL INDICES)")
 
 selected_index = st.selectbox("🎯 Select Active Index", list(tickers.keys()), index=0)
 
 market_data = get_real_market_data()
 spot_price = market_data[selected_index]["price"]
 
-# Step setting based on index
-if selected_index == "BANKNIFTY":
-    step = 100
-elif selected_index in ["SENSEX", "NIFTY IT"]:
-    step = 100
-else:
-    step = 50
-
+step = 100 if selected_index in ["BANKNIFTY", "SENSEX", "NIFTY IT"] else 50
 atm_strike = int(round(spot_price / step) * step)
 
-# Full Tickers Bar Display
+# Render Tickers Bar Safely
 ticker_html = '<div class="ticker-wrapper">'
 for name, info in market_data.items():
     chg_class = "chg-green" if info['chg'] >= 0 else "chg-red"
@@ -126,26 +118,22 @@ for name, info in market_data.items():
 ticker_html += '</div>'
 st.markdown(ticker_html, unsafe_allow_html=True)
 
-# Market Statistics Strip
-st.markdown(f"""
+st.markdown("""
 <div style="display: flex; gap: 10px; margin-bottom: 10px;">
     <div style="flex: 1; background: #E0F2FE; padding: 8px; border-radius: 6px; text-align: center; font-size: 11px; font-weight: 800; color: #0369A1;">
-        📈 MARKET ADVANCE: <b>34 STOCKS</b> | DECLINE: <b>16 STOCKS</b>
+        📈 ADVANCE: <b>34</b> | DECLINE: <b>16</b>
     </div>
     <div style="flex: 1; background: #F3E8FF; padding: 8px; border-radius: 6px; text-align: center; font-size: 11px; font-weight: 800; color: #6B21A8;">
-        📊 PCR (PUT-CALL RATIO): <b>1.08 (NEUTRAL-BULLISH)</b> | ⏰ EXPIRY DAY DECAY ACTIVE
+        📊 PCR: <b>1.08</b> | ⏰ EXPIRY DECAY ACTIVE
     </div>
 </div>
 """, unsafe_allow_html=True)
 
-# Expiry Sensitive LTP Calculation (Zero/Low Premium for OTM on Expiry Day)
 def get_expiry_aware_ltp(strike, is_call, spot):
     diff = (spot - strike) if is_call else (strike - spot)
     if diff >= 0:
-        # ITM or ATM options keep intrinsic value + minimal time value
         return round(max(0.5, diff + 2.0), 2)
     else:
-        # OTM options collapse heavily on expiry day to near zero (< ₹2)
         decay_val = max(0.2, 5.0 - abs(diff) * 0.1)
         return round(decay_val if abs(diff) <= 50 else 0.5, 2)
 
@@ -155,19 +143,10 @@ ce_atm_ltp = get_expiry_aware_ltp(atm_strike, True, spot_price)
 btst_strike = atm_strike + step
 ce_btst_ltp = get_expiry_aware_ltp(btst_strike, True, spot_price)
 
-# ------------------------------------------------------------------
-# 3. MASTER TABS
-# ------------------------------------------------------------------
 tab_trades, tab_eval, tab_btst, tab_hz, tab_chain, tab_chart = st.tabs([
-    "🚀 Live Trades", 
-    "💡 AI Evaluator", 
-    "🎯 BTST Zone", 
-    "🔥 Hero-Zero", 
-    "📊 Option Chain", 
-    "📈 OI Chart"
+    "🚀 Live Trades", "💡 AI Evaluator", "🎯 BTST Zone", "🔥 Hero-Zero", "📊 Option Chain", "📈 OI Chart"
 ])
 
-# TAB 1: LIVE TRADES
 with tab_trades:
     st.subheader(f"🚀 Active Live Trades for {selected_index} (Spot: {spot_price})")
     signals = [
@@ -176,102 +155,72 @@ with tab_trades:
     ]
     for s in signals:
         ltp, entry, sl, state = s["ltp"], s["entry"], s["sl"], s["state"]
-        
-        if ltp <= sl:
-            card_cls, banner_cls, rec_cls, rec, status_msg = "analysis-card card-sl", "banner-sl", "bg-exit", "EXIT / SL HIT", f"🚨 STOP LOSS HIT AT ₹{sl} — Current LTP ₹{ltp}"
-        elif state == "WAIT":
-            card_cls, banner_cls, rec_cls, rec, status_msg = "analysis-card card-wait", "banner-wait", "bg-wait", "WAIT FOR ENTRY", f"⏳ EXPIRY DECAY WARNING: WAIT — Current LTP ₹{ltp}"
-        else:
-            card_cls, banner_cls, rec_cls, rec, status_msg = "analysis-card", "banner-running", "bg-hold", "HOLD POSITION", f"🟢 ACTIVE POSITION (HOLD) — Current LTP: ₹{ltp}"
-
+        card_cls, banner_cls, rec_cls, rec, status_msg = ("analysis-card", "banner-running", "bg-hold", "HOLD", f"🟢 ACTIVE POSITION — LTP ₹{ltp}") if ltp > sl else ("analysis-card card-sl", "banner-sl", "bg-exit", "EXIT", f"🚨 SL HIT — LTP ₹{ltp}")
         st.markdown(f"""
         <div class="{card_cls}">
-            <div class="status-banner {banner_cls}"><span>{status_msg}</span><span>🔄 EXPIRY SYNCED</span></div>
+            <div class="status-banner {banner_cls}"><span>{status_msg}</span><span>🔄 SYNCED</span></div>
             <div class="card-header"><span class="symbol-title">{s['symbol']}</span><span class="badge-rec {rec_cls}">{rec}</span></div>
             <div class="card-grid">
-                <div><div class="grid-lbl">CURRENT LTP</div><div class="grid-val" style="color:#DC2626;">₹{ltp}</div></div>
-                <div><div class="grid-lbl">ENTRY PRICE</div><div class="grid-val">₹{entry}</div></div>
-                <div><div class="grid-lbl">STOP LOSS</div><div class="grid-val" style="color:#DC2626;">₹{sl}</div></div>
-                <div><div class="grid-lbl">TARGET ZONE</div><div class="grid-val" style="color:#16A34A;">₹{s['target']}</div></div>
+                <div><div class="grid-lbl">LTP</div><div class="grid-val" style="color:#DC2626;">₹{ltp}</div></div>
+                <div><div class="grid-lbl">ENTRY</div><div class="grid-val">₹{entry}</div></div>
+                <div><div class="grid-lbl">SL</div><div class="grid-val" style="color:#DC2626;">₹{sl}</div></div>
+                <div><div class="grid-lbl">TARGET</div><div class="grid-val" style="color:#16A34A;">₹{s['target']}</div></div>
             </div>
         </div>
         """, unsafe_allow_html=True)
 
-# TAB 2: AI EVALUATOR
 with tab_eval:
     st.subheader("💡 AI Option Trade Evaluator")
     col1, col2 = st.columns(2)
-    with col1:
-        u_strike = st.number_input("Select Strike Price", value=int(atm_strike), step=step)
-    with col2:
-        u_opt = st.selectbox("Select Option Type", ["CE (Call)", "PE (Put)"])
-
+    with col1: u_strike = st.number_input("Strike", value=int(atm_strike), step=step)
+    with col2: u_opt = st.selectbox("Type", ["CE (Call)", "PE (Put)"])
     is_ce = "CE" in u_opt
     e_ltp = get_expiry_aware_ltp(u_strike, is_ce, spot_price)
-
-    if (is_ce and u_strike <= spot_price) or (not is_ce and u_strike >= spot_price):
-        e_rec, e_cls, card_type, banner_type = "ENTER / BUY", "bg-buy", "analysis-card", "banner-running"
-        logic_msg = "In-The-Money structure verified. Minimal expiry risk."
-    else:
-        e_rec, e_cls, card_type, banner_type = "WAIT / AVOID", "bg-wait", "analysis-card card-wait", "banner-wait"
-        logic_msg = "Out-of-The-Money option on Expiry Day. High probability of zero decay."
-
-    st.markdown(f"""
-    <div class="{card_type}" style="margin-top: 10px;">
-        <div class="status-banner {banner_type}">
-            <span>🎯 EXPIRY-AWARE AI EVALUATION</span><span>SYNCED</span>
-        </div>
-        <div class="card-header">
-            <span class="symbol-title">{selected_index} {u_strike} {'CE' if is_ce else 'PE'}</span>
-            <span class="badge-rec {e_cls}">{e_rec}</span>
-        </div>
-        <div style="font-size: 11px; color: #334155; margin-top: 8px;">💡 <b>Thesis:</b> {logic_msg}</div>
-        <div class="card-grid">
-            <div><div class="grid-lbl">CALCULATED LTP</div><div class="grid-val" style="color:#2563EB;">₹{e_ltp}</div></div>
-            <div><div class="grid-lbl">REC ENTRY</div><div class="grid-val">₹{round(e_ltp * 1.05, 1)}</div></div>
-            <div><div class="grid-lbl">STOP LOSS (SL)</div><div class="grid-val" style="color:#DC2626;">₹{round(e_ltp * 0.50, 1)}</div></div>
-            <div><div class="grid-lbl">TARGET ZONE</div><div class="grid-val" style="color:#16A34A;">₹{round(e_ltp * 1.50, 1)}</div></div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-# TAB 3: BTST
-with tab_btst:
-    st.subheader("🎯 Buy Today Sell Tomorrow (BTST) Zone")
     st.markdown(f"""
     <div class="analysis-card">
-        <div class="status-banner banner-running"><span>🌙 OVERNIGHT HOLD RECOMMENDATION</span><span>3:15 PM TIMING</span></div>
-        <div class="card-header"><span class="symbol-title">{selected_index} {btst_strike} CE (BTST)</span><span class="badge-rec bg-buy">BTST BUY</span></div>
+        <div class="status-banner banner-running"><span>🎯 EVALUATION</span><span>OK</span></div>
+        <div class="card-header"><span class="symbol-title">{selected_index} {u_strike} {'CE' if is_ce else 'PE'}</span><span class="badge-rec bg-buy">READY</span></div>
         <div class="card-grid">
-            <div><div class="grid-lbl">BUY RANGE</div><div class="grid-val">₹{ce_btst_ltp} - ₹{round(ce_btst_ltp+1, 2)}</div></div>
-            <div><div class="grid-lbl">OVERNIGHT SL</div><div class="grid-val" style="color:#DC2626;">₹{round(ce_btst_ltp*0.4, 1)}</div></div>
-            <div><div class="grid-lbl">TARGET 1</div><div class="grid-val" style="color:#16A34A;">₹{round(ce_btst_ltp*1.5, 1)}</div></div>
-            <div><div class="grid-lbl">TARGET 2</div><div class="grid-val" style="color:#16A34A;">₹{round(ce_btst_ltp*2.0, 1)}</div></div>
+            <div><div class="grid-lbl">LTP</div><div class="grid-val">₹{e_ltp}</div></div>
+            <div><div class="grid-lbl">ENTRY</div><div class="grid-val">₹{round(e_ltp*1.05, 1)}</div></div>
+            <div><div class="grid-lbl">SL</div><div class="grid-val">₹{round(e_ltp*0.5, 1)}</div></div>
+            <div><div class="grid-lbl">TARGET</div><div class="grid-val">₹{round(e_ltp*1.5, 1)}</div></div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-# TAB 4: HERO-ZERO
+with tab_btst:
+    st.subheader("🎯 BTST Zone")
+    st.markdown(f"""
+    <div class="analysis-card">
+        <div class="status-banner banner-running"><span>🌙 OVERNIGHT</span><span>3:15 PM</span></div>
+        <div class="card-header"><span class="symbol-title">{selected_index} {btst_strike} CE</span><span class="badge-rec bg-buy">BTST</span></div>
+        <div class="card-grid">
+            <div><div class="grid-lbl">BUY RANGE</div><div class="grid-val">₹{ce_btst_ltp}</div></div>
+            <div><div class="grid-lbl">SL</div><div class="grid-val">₹{round(ce_btst_ltp*0.4, 1)}</div></div>
+            <div><div class="grid-lbl">T1</div><div class="grid-val">₹{round(ce_btst_ltp*1.5, 1)}</div></div>
+            <div><div class="grid-lbl">T2</div><div class="grid-val">₹{round(ce_btst_ltp*2.0, 1)}</div></div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
 with tab_hz:
     st.subheader("🔥 Hero-Zero Special")
     st.markdown(f"""
     <div class="analysis-card" style="border-left-color: #9333EA;">
-        <div class="status-banner" style="background: #F3E8FF; color: #6B21A8; border: 1px solid #D8B4FE;">
-            <span>🚀 EXPIRY MOMENTUM SPIKE</span><span>HERO-ZERO ACTIVE</span>
-        </div>
+        <div class="status-banner" style="background: #F3E8FF; color: #6B21A8;"><span>🚀 SPIKE</span><span>ACTIVE</span></div>
         <div class="card-header"><span class="symbol-title">{selected_index} {atm_strike} CE</span><span class="badge-rec bg-hold">HERO-ZERO</span></div>
         <div class="card-grid">
-            <div><div class="grid-lbl">ENTRY PRICE</div><div class="grid-val" style="color:#9333EA;">₹2.00 - ₹5.00</div></div>
-            <div><div class="grid-lbl">STOP LOSS</div><div class="grid-val" style="color:#DC2626;">₹0.00</div></div>
-            <div><div class="grid-lbl">TARGET 1 (3X)</div><div class="grid-val" style="color:#16A34A;">₹15.00</div></div>
-            <div><div class="grid-lbl">TARGET 2 (5X)</div><div class="grid-val" style="color:#16A34A;">₹25.00</div></div>
+            <div><div class="grid-lbl">ENTRY</div><div class="grid-val">₹2.00 - ₹5.00</div></div>
+            <div><div class="grid-lbl">SL</div><div class="grid-val">₹0.00</div></div>
+            <div><div class="grid-lbl">T1</div><div class="grid-val">₹15.00</div></div>
+            <div><div class="grid-lbl">T2</div><div class="grid-val">₹25.00</div></div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-# TAB 5: OPTION CHAIN
 with tab_chain:
-    st.subheader(f"📊 {selected_index} Option Chain Matrix")
+    st.subheader(f"📊 {selected_index} Option Chain")
     chain_df = pd.DataFrame([
         {"CALL OI": "1.00L", "CALL PRICE": f"₹{get_expiry_aware_ltp(atm_strike-step, True, spot_price)}", "STRIKE": atm_strike-step, "PUT PRICE": f"₹{get_expiry_aware_ltp(atm_strike-step, False, spot_price)}", "PUT OI": "3.55L"},
         {"CALL OI": "2.38L", "CALL PRICE": f"₹{ce_itm_ltp}", "STRIKE": atm_strike, "PUT PRICE": f"₹{get_expiry_aware_ltp(atm_strike, False, spot_price)}", "PUT OI": "7.15L"},
@@ -279,13 +228,11 @@ with tab_chain:
     ])
     st.dataframe(chain_df, use_container_width=True, hide_index=True)
 
-# TAB 6: OI CHART
 with tab_chart:
-    st.subheader(f"📈 Open Interest Distribution - {selected_index}")
-    strikes = [str(atm_strike-step), str(atm_strike), str(atm_strike+step)]
+    st.subheader(f"📈 OI Distribution")
     fig = go.Figure()
-    fig.add_trace(go.Bar(x=strikes, y=[1.00, 2.38, 9.32], name='Call OI (Lakhs)', marker_color='#DC2626'))
-    fig.add_trace(go.Bar(x=strikes, y=[3.55, 7.15, 5.66], name='Put OI (Lakhs)', marker_color='#16A34A'))
+    fig.add_trace(go.Bar(x=[str(atm_strike-step), str(atm_strike), str(atm_strike+step)], y=[1.00, 2.38, 9.32], name='Call OI', marker_color='#DC2626'))
+    fig.add_trace(go.Bar(x=[str(atm_strike-step), str(atm_strike), str(atm_strike+step)], y=[3.55, 7.15, 5.66], name='Put OI', marker_color='#16A34A'))
     fig.update_layout(barmode='group', height=300, template="plotly_white")
     st.plotly_chart(fig, use_container_width=True)
 
