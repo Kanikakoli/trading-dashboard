@@ -2,244 +2,237 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-import yfinance as yf
 from datetime import datetime
 
 # ------------------------------------------------------------------
-# 1. PAGE CONFIG & SESSION
+# 1. PAGE CONFIGURATION
 # ------------------------------------------------------------------
 st.set_page_config(
-    page_title="PRO TERMINAL v35.0 - FULL EXECUTION",
+    page_title="PRO TERMINAL v40.0 - DYNAMIC SYSTEM",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-def render_clean_html(html_str):
-    st.html(str(html_str).strip())
-
-if 'authenticated' not in st.session_state:
-    st.session_state.authenticated = True
+# Initialize persistent session states for interactive trade execution
+if "executed_orders" not in st.session_state:
+    st.session_state.executed_orders = []
 
 # ------------------------------------------------------------------
-# 2. RESPONSIVE CSS & UI DESIGN
+# 2. DYNAMIC LIVE DATA PIPELINE
 # ------------------------------------------------------------------
-css_content = """
-<style>
-.block-container { padding: 0.2rem 0.3rem !important; }
-.top-header { background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%); border-radius: 10px; padding: 8px 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #334155; }
-.app-title { font-size: 14px; font-weight: 900; color: #F8FAFC; }
-.live-dot { height: 8px; width: 8px; background-color: #10B981; border-radius: 50%; display: inline-block; margin-right: 4px; }
+@st.cache_data(ttl=1)
+def get_live_market_data():
+    """Generates dynamic live price fluctuations."""
+    base_nifty = 24013.5 + np.random.uniform(-5.0, 5.0)
+    base_bank = 56902.9 + np.random.uniform(-15.0, 15.0)
+    base_sensex = 76923.4 + np.random.uniform(-20.0, 20.0)
+    base_fin = 21850.0 + np.random.uniform(-8.0, 8.0)
+    base_mid = 12450.0 + np.random.uniform(-4.0, 4.0)
 
-.market-stats-bar { background: #0B0F19; border-radius: 8px; padding: 6px; border: 1px solid #1E293B; margin-bottom: 8px; }
-.stats-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; text-align: center; }
-.stat-box { background: #111827; border-radius: 6px; padding: 4px 2px; border: 1px solid #1F2937; }
-.stat-lbl { font-size: 7px; color: #9CA3AF; font-weight: 700; }
-.stat-val { font-size: 9px; font-weight: 800; color: #F9FAFB; }
-.stat-sub-up { font-size: 7px; color: #10B981; font-weight: 800; }
-
-.trade-card { background: #FFFFFF; border-radius: 10px; padding: 10px; margin-bottom: 8px; border-left: 5px solid #10B981; border-top: 1px solid #E2E8F0; border-right: 1px solid #E2E8F0; border-bottom: 1px solid #E2E8F0; }
-.trade-card-put { border-left-color: #EF4444; }
-
-.card-top-row { display: flex; justify-content: space-between; align-items: center; }
-.algo-badge { background: #EFF6FF; color: #1D4ED8; font-size: 8px; font-weight: 800; padding: 2px 6px; border-radius: 4px; }
-.grade-aplus { background: #DCFCE7; color: #15803D; font-size: 8px; font-weight: 900; padding: 2px 6px; border-radius: 4px; }
-.status-badge { font-size: 8px; font-weight: 800; padding: 2px 6px; border-radius: 4px; background: #D1FAE5; color: #047857; }
-
-.trade-title { font-size: 12px; font-weight: 900; color: #0F172A; margin: 4px 0 2px 0; }
-.trade-logic { font-size: 8px; color: #64748B; font-weight: 600; }
-
-.metrics-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; background: #F8FAFC; padding: 6px 2px; border-radius: 6px; text-align: center; margin-top: 6px; }
-.m-lbl { font-size: 7px; color: #64748B; font-weight: 800; }
-.m-val { font-size: 10px; font-weight: 900; color: #0F172A; }
-
-.sl-warning-box { background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 6px; padding: 4px 6px; margin-top: 4px; display: flex; justify-content: space-between; font-size: 8px; color: #92400E; font-weight: 700; }
-
-.analysis-box { background: #0F172A; border: 1px solid #334155; border-radius: 8px; padding: 10px; color: #F8FAFC; margin-bottom: 8px; }
-.analysis-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-top: 6px; }
-.an-card { background: #1E293B; padding: 8px; border-radius: 6px; border: 1px solid #475569; }
-.an-title { font-size: 9px; color: #94A3B8; font-weight: 700; }
-.an-val { font-size: 14px; font-weight: 900; color: #38BDF8; }
-.an-sub { font-size: 8px; font-weight: 600; color: #34D399; }
-</style>
-"""
-render_clean_html(css_content)
-
-# ------------------------------------------------------------------
-# 3. LIVE ENGINE & DATA PIPELINE
-# ------------------------------------------------------------------
-@st.cache_data(ttl=2)
-def fetch_live_engine():
     return {
-        "nifty": {"spot": 24013.5, "open": 23971.25, "chg": 25.90, "pct": 0.18},
-        "banknifty": {"spot": 56902.9, "open": 56830.80, "chg": 150.00, "pct": 0.26},
-        "finnifty": {"spot": 21850.0, "open": 21800.00, "chg": 50.00, "pct": 0.23},
-        "midcap": {"spot": 12450.0, "open": 12400.00, "chg": 50.00, "pct": 0.40},
-        "sensex": {"spot": 76923.4, "open": 76800.00, "chg": 82.40, "pct": 0.13},
+        "NIFTY 50": {"spot": round(base_nifty, 2), "chg": "+42.50 (+0.18%)", "trend": "BULLISH 🟢"},
+        "BANK NIFTY": {"spot": round(base_bank, 2), "chg": "+150.00 (+0.26%)", "trend": "BULLISH 🟢"},
+        "SENSEX": {"spot": round(base_sensex, 2), "chg": "+82.40 (+0.13%)", "trend": "NEUTRAL 🟡"},
+        "FIN NIFTY": {"spot": round(base_fin, 2), "chg": "+50.00 (+0.23%)", "trend": "BULLISH 🟢"},
+        "MIDCAP NIFTY": {"spot": round(base_mid, 2), "chg": "+50.00 (+0.40%)", "trend": "STRONG 🟢"},
         "time": datetime.now().strftime("%H:%M:%S")
     }
 
-engine_data = fetch_live_engine()
-n = engine_data["nifty"]
-b = engine_data["banknifty"]
-sen = engine_data["sensex"]
-fin = engine_data["finnifty"]
-mid = engine_data["midcap"]
+data = get_live_market_data()
 
-all_generated_trades = [
-    {
-        "id": "T1", "index_tag": "NIFTY 50", "symbol": "NIFTY 24000 CE", "type": "BUY CALL",
-        "algo": "EMA CROSS + OI SPIKE", "ltp": 42.95, "entry": 51.60, "sl": 39.50, "hold_sl": 34.20, "target": 79.00,
-        "grade": "A+", "probability": "88%", "reason": "Strong Institutional Volume & OI Support", "lot": 65, "is_call": True
-    },
-    {
-        "id": "T2", "index_tag": "BANK NIFTY", "symbol": "BANK NIFTY 56900 PE", "type": "BUY PUT",
-        "algo": "REJECTION @ RESISTANCE", "ltp": 53.50, "entry": 53.50, "sl": 39.30, "hold_sl": 32.70, "target": 79.10,
-        "grade": "A+", "probability": "85%", "reason": "Heavy Call Writing @ 57100", "lot": 15, "is_call": False
-    }
-]
+# Header Bar
+top_col1, top_col2 = st.columns([3, 1])
+with top_col1:
+    st.title("⚡ PRO TERMINAL")
+with top_col2:
+    st.caption(f"🟢 **LIVE SYNC:** {data['time']}")
 
-# Top Bar Header
-render_clean_html(f"""
-<div class="top-header">
-    <div class="app-title">⚡ PRO TERMINAL <span style="font-size: 8px; color: #10B981;">● LIVE SYNC</span></div>
-    <div style="font-size: 9px; font-weight: 800; color: #10B981;"><span class="live-dot"></span>{engine_data['time']}</div>
-</div>
-""")
+st.button("🔄 Sync Live Market Data", use_container_width=True)
 
-st.button("🔄 Sync Market Data", use_container_width=True)
-
+# Index Selector Filter
 selected_index = st.selectbox(
     "📍 Select Active Index Filter:",
     ["ALL INDICES", "NIFTY 50", "BANK NIFTY", "SENSEX", "FIN NIFTY", "MIDCAP NIFTY"]
 )
 
-render_clean_html(f"""
-<div class="market-stats-bar">
-    <div class="stats-grid">
-        <div class="stat-box"><div class="stat-lbl">NIFTY 50</div><div class="stat-val">{n['spot']:,.1f}</div><div class="stat-sub-up">▲ {n['pct']:+.2f}%</div></div>
-        <div class="stat-box"><div class="stat-lbl">BANK NIFTY</div><div class="stat-val">{b['spot']:,.1f}</div><div class="stat-sub-up">▲ +150.0</div></div>
-        <div class="stat-box"><div class="stat-lbl">SENSEX</div><div class="stat-val">{sen['spot']:,.1f}</div><div class="stat-sub-up">▲ {sen['pct']:+.2f}%</div></div>
-        <div class="stat-box"><div class="stat-lbl">FIN NIFTY</div><div class="stat-val">{fin['spot']:,.1f}</div><div class="stat-sub-up">▲ BULLISH</div></div>
-        <div class="stat-box"><div class="stat-lbl">MIDCAP NIFTY</div><div class="stat-val">{mid['spot']:,.1f}</div><div class="stat-sub-up">▲ STRENGTH</div></div>
-    </div>
-</div>
-""")
+# Native Responsive Ticker Bar
+st.markdown("---")
+m1, m2, m3, m4, m5 = st.columns(5)
+m1.metric("NIFTY 50", f"{data['NIFTY 50']['spot']:,}", data['NIFTY 50']['chg'])
+m2.metric("BANK NIFTY", f"{data['BANK NIFTY']['spot']:,}", data['BANK NIFTY']['chg'])
+m3.metric("SENSEX", f"{data['SENSEX']['spot']:,}", data['SENSEX']['chg'])
+m4.metric("FIN NIFTY", f"{data['FIN NIFTY']['spot']:,}", data['FIN NIFTY']['chg'])
+m5.metric("MIDCAP NIFTY", f"{data['MIDCAP NIFTY']['spot']:,}", data['MIDCAP NIFTY']['chg'])
+st.markdown("---")
 
 # ------------------------------------------------------------------
-# 4. TAB NAVIGATION & CONTENT RENDER
+# 3. DYNAMIC TRADES & SIGNALS DATABASE
 # ------------------------------------------------------------------
-tab_signals, tab_btst, tab_hero, tab_chain, tab_analysis, tab_charts = st.tabs([
-    f"⚡ Active Signals ({len(all_generated_trades)})", 
-    "🌙 BTST Setup",
-    "🚀 Dynamic Zero-Hero", 
+trades_database = [
+    {
+        "id": "T1", "index": "NIFTY 50", "symbol": "NIFTY 24000 CE", "type": "BUY CALL",
+        "algo": "EMA CROSS + OI SPIKE", "ltp": round(42.95 + np.random.uniform(-1, 1), 2), 
+        "entry": 51.60, "sl": 39.50, "hold_sl": 34.20, "target": 79.00,
+        "grade": "A+ (88% Prob)", "reason": "Strong Institutional Volume & Call Delta Acceleration", "lot": 65
+    },
+    {
+        "id": "T2", "index": "BANK NIFTY", "symbol": "BANK NIFTY 56900 PE", "type": "BUY PUT",
+        "algo": "REJECTION @ RESISTANCE", "ltp": round(53.50 + np.random.uniform(-1, 1), 2), 
+        "entry": 53.50, "sl": 39.30, "hold_sl": 32.70, "target": 79.10,
+        "grade": "A+ (85% Prob)", "reason": "Heavy Call Writing at 57100 Level", "lot": 15
+    }
+]
+
+hero_database = [
+    {
+        "id": "ZH1", "index": "FIN NIFTY", "symbol": "FINNIFTY 21850 CE", "type": "ZERO-HERO",
+        "algo": "GAMMA EXPLOSION", "ltp": 12.40, "entry": 14.00, "sl": 4.00, "target": 45.00,
+        "grade": "HIGH VOLATILITY", "reason": "Expiry Short-Covering Triggered", "lot": 40
+    }
+]
+
+btst_database = [
+    {
+        "id": "BT1", "index": "NIFTY 50", "symbol": "NIFTY 24100 CE", "type": "BTST OVERNIGHT",
+        "algo": "GAP-UP RADAR", "ltp": 68.50, "entry": 65.00, "sl": 45.00, "target": 110.00,
+        "grade": "OVERNIGHT HOLD", "reason": "Positive Global Cues & Gift Nifty Premium", "lot": 65
+    }
+]
+
+# ------------------------------------------------------------------
+# 4. TAB NAVIGATION ENGINE
+# ------------------------------------------------------------------
+tab_signals, tab_hero, tab_btst, tab_chain, tab_analysis, tab_charts = st.tabs([
+    f"⚡ Active Signals ({len(trades_database)})", 
+    f"🚀 Zero-Hero ({len(hero_database)})", 
+    f"🌙 BTST Setup ({len(btst_database)})", 
     "📊 Option Chain", 
-    "📊 Trade Analysis",
-    "📈 Interactive Chart"
+    "📈 Trade Analysis",
+    "📉 Interactive Chart"
 ])
 
-# --- TAB 1: SIGNALS & DIRECT ORDER EXECUTION ---
-with tab_signals:
-    filtered = [t for t in all_generated_trades if selected_index == "ALL INDICES" or t["index_tag"] == selected_index]
-    for t in filtered:
-        card_class = "trade-card" if t['is_call'] else "trade-card trade-card-put"
-        risk_amount = round((t['entry'] - t['sl']) * t['lot'])
+# --- HELPER FUNCTION TO RENDER TRADE CARDS WITH EXECUTION PANELS ---
+def render_trade_card(t):
+    with st.container(border=True):
+        c1, c2 = st.columns([3, 1])
+        with c1:
+            st.markdown(f"### {t['symbol']} `{t['type']}`")
+            st.caption(f"⚙️ **Strategy:** {t['algo']} | ⭐ **Grade:** {t['grade']}")
+        with c2:
+            st.subheader(f"₹{t['ltp']}")
+            st.caption("Live Price")
         
-        render_clean_html(f"""
-        <div class="{card_class}">
-            <div class="card-top-row">
-                <div><span class="algo-badge">⚙️ {t['algo']}</span> <span class="grade-aplus">⭐ {t['grade']} ({t['probability']})</span></div>
-                <span class="status-badge">🟢 ACTIVE</span>
-            </div>
-            <div class="trade-title">{t['symbol']} ({t['type']})</div>
-            <div class="trade-logic">💡 {t['reason']}</div>
-            <div class="metrics-row">
-                <div class="m-item"><span class="m-lbl">LTP</span><span class="m-val" style="color:#2563EB;">₹{t['ltp']:.2f}</span></div>
-                <div class="m-item"><span class="m-lbl">ENTRY</span><span class="m-val">₹{t['entry']:.2f}</span></div>
-                <div class="m-item"><span class="m-lbl">SL</span><span class="m-val" style="color:#DC2626;">₹{t['sl']:.2f}</span></div>
-                <div class="m-item"><span class="m-lbl">TARGET</span><span class="m-val" style="color:#16A34A;">₹{t['target']:.2f}</span></div>
-            </div>
-            <div class="sl-warning-box"><span>🛡️ <b>HOLD SL:</b> ₹{t['hold_sl']:.2f}</span><span>💰 <b>RISK/LOT:</b> ₹{risk_amount:,}</span></div>
-        </div>
-        """)
+        st.write(f"💡 **Trade Logic:** {t['reason']}")
         
-        # Embedded Order Execution Section
-        with st.expander(f"⚡ Execute Order: {t['symbol']}"):
-            c1, c2, c3 = st.columns([1, 1, 1])
-            with c1:
-                lots = st.number_input(f"Lots ({t['lot']} qty/lot)", min_value=1, value=1, key=f"lots_{t['id']}")
-            with c2:
-                order_type = st.selectbox("Type", ["MARKET", "LIMIT"], key=f"type_{t['id']}")
-            with c3:
-                trigger_p = st.number_input("Trigger Price", value=t['entry'], key=f"p_{t['id']}")
+        # Key Trade Levels
+        col_a, col_b, col_c, col_d = st.columns(4)
+        col_a.metric("ENTRY", f"₹{t['entry']}")
+        col_b.metric("STOP LOSS", f"₹{t['sl']}")
+        col_c.metric("HOLD SL", f"₹{t['hold_sl']}" if "hold_sl" in t else "N/A")
+        col_d.metric("TARGET", f"₹{t['target']}")
+        
+        # Interactive Order Form
+        with st.expander(f"🛒 Execute Order for {t['symbol']}"):
+            f1, f2, f3 = st.columns(3)
+            with f1:
+                lots = st.number_input("Lots:", min_value=1, value=1, key=f"lot_{t['id']}")
+            with f2:
+                o_type = st.selectbox("Order Type:", ["MARKET", "LIMIT"], key=f"ord_{t['id']}")
+            with f3:
+                price = st.number_input("Order Price:", value=float(t['entry']), key=f"p_{t['id']}")
             
-            btn1, btn2 = st.columns(2)
-            with btn1:
-                if st.button(f"🟢 BUY {t['symbol']}", use_container_width=True, key=f"buy_{t['id']}"):
-                    st.success(f"✅ Order Placed: {lots * t['lot']} Qty @ ₹{trigger_p}")
-            with btn2:
-                if st.button(f"🔴 EXIT / CLOSE", use_container_width=True, key=f"sell_{t['id']}"):
-                    st.warning("Position Exited.")
+            b1, b2 = st.columns(2)
+            with b1:
+                if st.button(f"🟢 BUY ({lots * t['lot']} QTY)", key=f"buy_{t['id']}", use_container_width=True):
+                    st.session_state.executed_orders.append(f"BUY {t['symbol']} @ ₹{price}")
+                    st.success(f"✅ Order Executed for {lots * t['lot']} Qty @ ₹{price}")
+            with b2:
+                if st.button(f"🔴 EXIT POSITION", key=f"sell_{t['id']}", use_container_width=True):
+                    st.warning(f"⚠️ Position exited for {t['symbol']}")
 
-# --- TAB 2: BTST SETUP ---
-with tab_btst:
-    st.subheader("🌙 BTST (Overnight) Radar Engine")
-    render_clean_html("""
-    <div class="analysis-box" style="border-color:#F59E0B;">
-        <div style="font-weight: 800; font-size: 11px; color:#FBBF24;">🌍 OVERNIGHT MARKET MATRIX</div>
-        <div class="analysis-grid">
-            <div class="an-card"><div class="an-title">US DOW JONES</div><div class="an-val" style="color:#34D399;">+0.42%</div><div class="an-sub">Bullish Bias</div></div>
-            <div class="an-card"><div class="an-title">GIFT NIFTY</div><div class="an-val" style="color:#38BDF8;">24,035 (+18)</div><div class="an-sub">Gap-Up Expected</div></div>
-        </div>
-    </div>
-    """)
-    st.info("💡 **BTST Strategy Recommendation:** Enter **NIFTY 24000 CE** between 3:15 PM - 3:25 PM for overnight holding with Target: ₹85.00.")
+# --- TAB 1: ACTIVE SIGNALS ---
+with tab_signals:
+    filtered = [t for t in trades_database if selected_index == "ALL INDICES" or t["index"] == selected_index]
+    if not filtered:
+        st.info("No active signals currently matching the selected index filter.")
+    else:
+        for trade in filtered:
+            render_trade_card(trade)
 
-# --- TAB 3: DYNAMIC ZERO-HERO ---
+# --- TAB 2: ZERO-HERO ENGINE ---
 with tab_hero:
     st.subheader("🚀 Dynamic Zero-Hero Engine")
-    st.warning("ℹ️ Zero-Hero signals trigger automatically on Expiry Days after 1:30 PM on high gamma spikes.")
+    st.info("⚡ Live Gamma Trades Active Below:")
+    for trade in hero_database:
+        render_trade_card(trade)
+
+# --- TAB 3: BTST SETUP ---
+with tab_btst:
+    st.subheader("🌙 Overnight BTST Radar Engine")
+    st.success("🟢 Market Conditions Favorable for Overnight Holding")
+    for trade in btst_database:
+        render_trade_card(trade)
 
 # --- TAB 4: OPTION CHAIN ---
 with tab_chain:
-    st.subheader("📊 Live Option Chain Data")
-    df_chain = pd.DataFrame([
-        {"Call OI": "2.98L", "STRIKE": "23850", "Put OI": "5.11L"},
-        {"Call OI": "3.73L", "STRIKE": "23900", "Put OI": "5.71L"},
-        {"Call OI": "4.48L", "STRIKE": "23950", "Put OI": "6.31L"},
-        {"Call OI": "5.23L", "STRIKE": "📍 24000 (ATM)", "Put OI": "6.91L"},
-        {"Call OI": "4.88L", "STRIKE": "24050", "Put OI": "6.63L"},
-        {"Call OI": "4.13L", "STRIKE": "24100", "Put OI": "6.03L"},
+    st.subheader(f"📊 Live Option Chain Data - {selected_index}")
+    
+    chain_df = pd.DataFrame([
+        {"CALL OI (Lakhs)": "2.98", "CALL LTP": "142.50", "STRIKE": 23850, "PUT LTP": "18.20", "PUT OI (Lakhs)": "5.11"},
+        {"CALL OI (Lakhs)": "3.73", "CALL LTP": "105.10", "STRIKE": 23900, "PUT LTP": "31.50", "PUT OI (Lakhs)": "5.71"},
+        {"CALL OI (Lakhs)": "4.48", "CALL LTP": "72.40", "STRIKE": 23950, "PUT LTP": "48.90", "PUT OI (Lakhs)": "6.31"},
+        {"CALL OI (Lakhs)": "5.23", "CALL LTP": "42.95", "STRIKE": 24000, "PUT LTP": "75.30", "PUT OI (Lakhs)": "6.91"},
+        {"CALL OI (Lakhs)": "4.88", "CALL LTP": "22.10", "STRIKE": 24050, "PUT LTP": "108.40", "PUT OI (Lakhs)": "6.63"},
+        {"CALL OI (Lakhs)": "4.13", "CALL LTP": "11.30", "STRIKE": 24100, "PUT LTP": "145.00", "PUT OI (Lakhs)": "6.03"},
     ])
-    st.dataframe(df_chain, use_container_width=True, hide_index=True)
+    st.dataframe(chain_df, use_container_width=True, hide_index=True)
 
 # --- TAB 5: TRADE ANALYSIS ---
 with tab_analysis:
-    st.subheader(f"📊 Market Analysis ({selected_index})")
-    render_clean_html("""
-    <div class="analysis-box">
-        <div class="analysis-grid">
-            <div class="an-card"><div class="an-title">PUT-CALL RATIO (PCR)</div><div class="an-val">1.28</div><div class="an-sub">BULLISH 🟢</div></div>
-            <div class="an-card"><div class="an-title">EXPECTED MAX PAIN</div><div class="an-val">₹24000</div><div class="an-sub">Expiry Pin Zone</div></div>
-            <div class="an-card"><div class="an-title">KEY SUPPORT</div><div class="an-val">₹23900</div><div class="an-sub">Heavy Put Writing</div></div>
-            <div class="an-card"><div class="an-title">KEY RESISTANCE</div><div class="an-val">₹24150</div><div class="an-sub">Heavy Call Writing</div></div>
-        </div>
-    </div>
-    """)
+    st.subheader("📈 Institutional Sentiment Metrics")
     
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("PUT-CALL RATIO (PCR)", "1.28", "BULLISH 🟢")
+    c2.metric("MAX PAIN STRIKE", "24,000", "Pin Zone")
+    c3.metric("STRONG SUPPORT", "23,900", "Put Wall")
+    c4.metric("STRONG RESISTANCE", "24,150", "Call Wall")
+    
+    st.markdown("### 📊 Open Interest (OI) Distribution")
     fig_oi = go.Figure()
     fig_oi.add_trace(go.Bar(x=['Support (23900)', 'ATM (24000)', 'Resistance (24150)'], y=[6.31, 6.91, 4.13], name='Put OI (Bulls)', marker_color='#10B981'))
     fig_oi.add_trace(go.Bar(x=['Support (23900)', 'ATM (24000)', 'Resistance (24150)'], y=[4.48, 5.23, 6.03], name='Call OI (Bears)', marker_color='#EF4444'))
-    fig_oi.update_layout(height=260, template="plotly_dark", barmode='group', margin=dict(l=5, r=5, t=20, b=5))
+    fig_oi.update_layout(height=300, template="plotly_dark", barmode='group', margin=dict(l=10, r=10, t=20, b=10))
     st.plotly_chart(fig_oi, use_container_width=True)
 
 # --- TAB 6: INTERACTIVE CHART ---
 with tab_charts:
-    st.subheader(f"📈 NIFTY 50 Intraday Candlestick Chart")
+    st.subheader("📉 Intraday Live Candlestick Chart")
+    
     dates = pd.date_range(end=datetime.now(), periods=25, freq='5min')
     close_prices = 24013.5 + np.cumsum(np.random.randn(25) * 2.5)
-    df_chart = pd.DataFrame({'Open': close_prices-1.5, 'High': close_prices+3, 'Low': close_prices-3, 'Close': close_prices}, index=dates)
+    df_chart = pd.DataFrame({'Open': close_prices-1.5, 'High': close_prices+3.0, 'Low': close_prices-3.0, 'Close': close_prices}, index=dates)
 
-    fig_chart = go.Figure(data=[go.Candlestick(x=df_chart.index, open=df_chart['Open'], high=df_chart['High'], low=df_chart['Low'], close=df_chart['Close'])])
-    fig_chart.update_layout(height=320, margin=dict(l=5, r=5, t=5, b=5), xaxis_rangeslider_visible=False, template="plotly_dark")
+    fig_chart = go.Figure(data=[go.Candlestick(
+        x=df_chart.index, 
+        open=df_chart['Open'], 
+        high=df_chart['High'], 
+        low=df_chart['Low'], 
+        close=df_chart['Close']
+    )])
+    fig_chart.update_layout(
+        height=350, 
+        margin=dict(l=5, r=5, t=5, b=5), 
+        xaxis_rangeslider_visible=False, 
+        template="plotly_dark"
+    )
     st.plotly_chart(fig_chart, use_container_width=True)
+
+# ------------------------------------------------------------------
+# 5. EXECUTED ORDERS LOG FOOTER
+# ------------------------------------------------------------------
+if st.session_state.executed_orders:
+    st.sidebar.subheader("📋 Executed Orders Log")
+    for order in st.session_state.executed_orders:
+        st.sidebar.success(order)
+
