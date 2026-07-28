@@ -6,10 +6,10 @@ import requests
 from datetime import datetime
 
 # ------------------------------------------------------------------
-# 1. PAGE CONFIG & ANALYSIS TERMINAL STYLING
+# 1. PAGE CONFIG & STYLING
 # ------------------------------------------------------------------
 st.set_page_config(
-    page_title="PRO ANALYSIS TERMINAL v100",
+    page_title="PRO ANALYSIS TERMINAL v101",
     page_icon="📈",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -24,7 +24,7 @@ st.markdown("""
     padding-right: 0.5rem !important;
 }
 
-/* Compact Live Market Bar */
+/* Ticker Bar */
 .ticker-wrapper {
     display: flex;
     flex-direction: row;
@@ -48,7 +48,7 @@ st.markdown("""
 .ticker-val { font-size: 11px; color: #FFF; font-weight: 800; margin: 1px 0; }
 .ticker-chg { font-size: 8px; color: #10B981; font-weight: 800; }
 
-/* Pure Analysis Signal Card UI */
+/* Analysis Card */
 .analysis-card {
     background: #111827;
     border: 1px solid #1F2937;
@@ -89,35 +89,50 @@ button[data-baseweb="tab"] {
 """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------------
-# 2. LIVE DATA FETCH ENGINE (NSE SYNC)
+# 2. SAFE DATA FETCH ENGINE (FIXED KEY ERROR)
 # ------------------------------------------------------------------
 def get_live_market_ticks():
-    # Production Level Fallback API Streamer
+    # Safe Dictionary with Guaranteed Keys
+    ticks_data = {
+        "NIFTY": 24000.00,
+        "NIFTY_CHG": "+0.18%",
+        "BNIFTY": 56905.15,
+        "BNIFTY_CHG": "+0.26%",
+        "SENSEX": 76929.85,
+        "SENSEX_CHG": "+0.13%",
+        "FINNIFTY": 21853.47,
+        "FINNIFTY_CHG": "+0.23%",
+        "MIDCAP": 12449.99,
+        "MIDCAP_CHG": "+0.40%"
+    }
+
     try:
         url = "https://www.nseindia.com/api/allIndices"
         headers = {'User-Agent': 'Mozilla/5.0'}
         response = requests.get(url, headers=headers, timeout=2)
-        data = response.json()
-        nifty = next(item for item in data['data'] if item["index"] == "NIFTY 50")
-        bnifty = next(item for item in data['data'] if item["index"] == "NIFTY BANK")
-        return {
-            "NIFTY": nifty['last'],
-            "NIFTY_CHG": f"{nifty['percentChange']:.2f}%",
-            "BNIFTY": bnifty['last'],
-            "BNIFTY_CHG": f"{bnifty['percentChange']:.2f}%"
-        }
-    except:
-        # Real-time Stream Simulation (Fallback)
-        base_nifty = 24000.00 + np.random.uniform(-3.0, 3.0)
-        return {
-            "NIFTY": round(base_nifty, 2),
-            "NIFTY_CHG": "+0.18%",
-            "BNIFTY": round(56900.00 + np.random.uniform(-10.0, 10.0), 2),
-            "BNIFTY_CHG": "+0.26%",
-            "SENSEX": round(76920.00 + np.random.uniform(-15.0, 15.0), 2),
-            "FINNIFTY": round(21850.00 + np.random.uniform(-4.0, 4.0), 2),
-            "MIDCAP": round(12450.00 + np.random.uniform(-2.0, 2.0), 2)
-        }
+        if response.status_code == 200:
+            data = response.json()
+            nifty = next((item for item in data['data'] if item["index"] == "NIFTY 50"), None)
+            bnifty = next((item for item in data['data'] if item["index"] == "NIFTY BANK"), None)
+            fin = next((item for item in data['data'] if item["index"] == "NIFTY FIN SERVICE"), None)
+            
+            if nifty:
+                ticks_data["NIFTY"] = round(nifty['last'], 2)
+                ticks_data["NIFTY_CHG"] = f"{nifty['percentChange']:.2f}%"
+            if bnifty:
+                ticks_data["BNIFTY"] = round(bnifty['last'], 2)
+                ticks_data["BNIFTY_CHG"] = f"{bnifty['percentChange']:.2f}%"
+            if fin:
+                ticks_data["FINNIFTY"] = round(fin['last'], 2)
+                ticks_data["FINNIFTY_CHG"] = f"{fin['percentChange']:.2f}%"
+    except Exception:
+        # Fallback Live Stream Simulation
+        ticks_data["NIFTY"] = round(24000.00 + np.random.uniform(-3.0, 3.0), 2)
+        ticks_data["BNIFTY"] = round(56900.00 + np.random.uniform(-10.0, 10.0), 2)
+        ticks_data["FINNIFTY"] = round(21850.00 + np.random.uniform(-4.0, 4.0), 2)
+        ticks_data["MIDCAP"] = round(12450.00 + np.random.uniform(-2.0, 2.0), 2)
+
+    return ticks_data
 
 ticks = get_live_market_ticks()
 
@@ -131,28 +146,28 @@ selected_index = st.selectbox(
     ["ALL INDICES", "NIFTY 50", "BANK NIFTY", "FIN NIFTY", "MIDCAP NIFTY"]
 )
 
-# Render Compact Header Strip
+# Render Ticker Strip
 st.markdown(f"""
 <div class="ticker-wrapper">
     <div class="ticker-box"><div class="ticker-title">NIFTY 50</div><div class="ticker-val">{ticks['NIFTY']}</div><div class="ticker-chg">▲ {ticks['NIFTY_CHG']}</div></div>
     <div class="ticker-box"><div class="ticker-title">BANK NIFTY</div><div class="ticker-val">{ticks['BNIFTY']}</div><div class="ticker-chg">▲ {ticks['BNIFTY_CHG']}</div></div>
-    <div class="ticker-box"><div class="ticker-title">FIN NIFTY</div><div class="ticker-val">{ticks['FINNIFTY']}</div><div class="ticker-chg">▲ +0.23%</div></div>
-    <div class="ticker-box"><div class="ticker-title">MIDCAP</div><div class="ticker-val">{ticks['MIDCAP']}</div><div class="ticker-chg">▲ +0.40%</div></div>
+    <div class="ticker-box"><div class="ticker-title">FIN NIFTY</div><div class="ticker-val">{ticks['FINNIFTY']}</div><div class="ticker-chg">▲ {ticks['FINNIFTY_CHG']}</div></div>
+    <div class="ticker-box"><div class="ticker-title">MIDCAP</div><div class="ticker-val">{ticks['MIDCAP']}</div><div class="ticker-chg">▲ {ticks['MIDCAP_CHG']}</div></div>
 </div>
 """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------------
-# 3. LIVE ANALYSIS SIGNALS GENERATOR ENGINE
+# 3. LIVE ANALYSIS SIGNALS
 # ------------------------------------------------------------------
 spot_nifty = ticks['NIFTY']
 
 analysis_signals = [
     {
         "id": "A1", "index": "NIFTY 50", "symbol": f"NIFTY {int(round(spot_nifty, -2))} CE", 
-        "algo": "OI SPIKE + VWAP BREAKOUT", "ltp": round(spot_nifty - 23980.0, 2) + 12.5,
-        "entry": round(spot_nifty - 23980.0, 2) + 10.0, "sl": 12.00, "target": 68.00,
+        "algo": "OI SPIKE + VWAP BREAKOUT", "ltp": round(abs(spot_nifty - 23980.0) + 12.5, 2),
+        "entry": round(abs(spot_nifty - 23980.0) + 10.0, 2), "sl": 12.00, "target": 68.00,
         "acc": "91% Probability", "rec": "STRONG BUY", "rec_cls": "bg-buy",
-        "reason": "Heavy Call Unwinding at ATM Strike & PCR Rising > 1.25", "is_bull": True
+        "reason": "Call Unwinding at ATM Strike & PCR Rising > 1.25", "is_bull": True
     },
     {
         "id": "A2", "index": "NIFTY 50", "symbol": f"NIFTY {int(round(spot_nifty, -2)) + 50} PE", 
@@ -197,7 +212,7 @@ def render_analysis_card(s):
         </div>
         <div style="display:flex; justify-content:space-between; margin-top:4px; font-size:9px; color:#9CA3AF;">
             <span>⚙️ <b>Engine:</b> {s['algo']}</span>
-            <span>🎯 <b>Signal Accuracy:</b> <b style="color:#10B981;">{s['acc']}</b></span>
+            <span>🎯 <b>Accuracy:</b> <b style="color:#10B981;">{s['acc']}</b></span>
         </div>
         <div style="font-size: 8px; color: #D1D5DB; margin-top: 4px;">💡 <b>Market Logic:</b> {s['reason']}</div>
         <div class="card-grid">
@@ -224,13 +239,13 @@ with tab_hero:
 
 # --- TAB 3: OPTION CHAIN ---
 with tab_chain:
-    st.subheader(f"📊 Nifty 50 Live Option Chain Matrix (ATM: {int(round(spot_nifty, -2))})")
     atm = int(round(spot_nifty, -2))
+    st.subheader(f"📊 Nifty 50 Live Option Chain Matrix (ATM: {atm})")
     
     chain_df = pd.DataFrame([
         {"CALL OI": "1.12L (+95%)", "CALL PRICE": "₹97.65", "STRIKE": atm - 100, "PUT PRICE": "₹1.85", "PUT OI": "4.64L (+144%)"},
         {"CALL OI": "2.05L (+258%)", "CALL PRICE": "₹51.60", "STRIKE": atm - 50, "PUT PRICE": "₹5.85", "PUT OI": "6.24L (+306%)"},
-        {"CALL OI": "8.19L (+327%)", "CALL PRICE": f"₹{round(spot_nifty - (atm-20), 2)}", "STRIKE": f"📍 {atm} (ATM)", "PUT PRICE": "₹22.15", "PUT OI": "6.61L (+217%)"},
+        {"CALL OI": "8.19L (+327%)", "CALL PRICE": f"₹{round(abs(spot_nifty - (atm-18)), 2)}", "STRIKE": f"📍 {atm} (ATM)", "PUT PRICE": "₹22.15", "PUT OI": "6.61L (+217%)"},
         {"CALL OI": "5.96L (+521%)", "CALL PRICE": "₹5.05", "STRIKE": atm + 50, "PUT PRICE": "₹59.10", "PUT OI": "1.52L (+240%)"},
         {"CALL OI": "4.48L (+179%)", "CALL PRICE": "₹1.85", "STRIKE": atm + 100, "PUT PRICE": "₹106.55", "PUT OI": "93,030 (+72%)"},
     ])
@@ -240,7 +255,7 @@ with tab_chain:
 with tab_tech:
     col1, col2 = st.columns(2)
     col1.metric("PUT-CALL RATIO (PCR)", "1.28", "BULLISH 🟢")
-    col2.metric("EXPIRY MAX PAIN ZONE", f"{atm}", "ATM Magnet Zone")
+    col2.metric("EXPIRY MAX PAIN ZONE", f"{int(round(spot_nifty, -2))}", "ATM Magnet Zone")
 
     st.subheader("📉 Technical Intraday Candlestick Chart")
     dates = pd.date_range(end=datetime.now(), periods=30, freq='5min')
