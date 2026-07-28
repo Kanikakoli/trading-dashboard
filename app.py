@@ -19,18 +19,6 @@ st.markdown("""
 .stApp { background-color: #F8FAFC; color: #0F172A; }
 .block-container { padding: 0.6rem 0.5rem !important; }
 
-.ticker-wrapper { display: flex; gap: 6px; margin-bottom: 12px; overflow-x: auto; }
-.ticker-box {
-    min-width: 110px; flex: 1; background: #FFFFFF; border: 1px solid #E2E8F0;
-    border-radius: 8px; padding: 8px 4px; text-align: center;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.03);
-}
-.ticker-title { font-size: 10px; color: #64748B; font-weight: 800; }
-.ticker-val { font-size: 13px; color: #0F172A; font-weight: 900; margin: 1px 0; }
-.ticker-chg { font-size: 10px; font-weight: 800; }
-.chg-green { color: #16A34A; }
-.chg-red { color: #DC2626; }
-
 .status-banner {
     padding: 6px 12px; border-radius: 6px; font-size: 11px;
     font-weight: 800; margin-bottom: 8px; display: flex;
@@ -90,11 +78,11 @@ def get_real_market_data():
             chg_pct = round(((price - prev_close) / prev_close) * 100, 2)
             data_res[name] = {"price": price, "chg": chg_pct}
         except:
-            fallback = {"NIFTY": 24007.95, "BANKNIFTY": 51200.0, "FINNIFTY": 23400.0, "MIDCPNIFTY": 12500.0, "SENSEX": 78500.0, "NIFTY IT": 38200.0}
-            data_res[name] = {"price": fallback.get(name, 20000.0), "chg": 0.02}
+            fallback = {"NIFTY": 23985.35, "BANKNIFTY": 51200.0, "FINNIFTY": 23400.0, "MIDCPNIFTY": 12500.0, "SENSEX": 78500.0, "NIFTY IT": 38200.0}
+            data_res[name] = {"price": fallback.get(name, 20000.0), "chg": -0.08}
     return data_res
 
-st.title("⚡ PRO MASTER TERMINAL (ALL INDICES)")
+st.title("⚡ PRO MASTER TERMINAL")
 
 selected_index = st.selectbox("🎯 Select Active Index", list(tickers.keys()), index=0)
 
@@ -104,30 +92,20 @@ spot_price = market_data[selected_index]["price"]
 step = 100 if selected_index in ["BANKNIFTY", "SENSEX", "NIFTY IT"] else 50
 atm_strike = int(round(spot_price / step) * step)
 
-# Render Tickers Bar Safely
-ticker_html = '<div class="ticker-wrapper">'
-for name, info in market_data.items():
-    chg_class = "chg-green" if info['chg'] >= 0 else "chg-red"
-    ticker_html += f"""
-    <div class="ticker-box">
-        <div class="ticker-title">{name}</div>
-        <div class="ticker-val">{info['price']}</div>
-        <div class="ticker-chg {chg_class}">{info['chg']}%</div>
-    </div>
-    """
-ticker_html += '</div>'
-st.markdown(ticker_html, unsafe_allow_html=True)
+# Safe Native Columns Ticker Bar (No HTML string breakage)
+cols = st.columns(len(market_data))
+for i, (name, info) in enumerate(market_data.items()):
+    with cols[i]:
+        chg_color = "🟢" if info['chg'] >= 0 else "🔴"
+        st.markdown(f"""
+        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; padding: 6px; text-align: center;">
+            <div style="font-size: 9px; color: #64748B; font-weight: 800;">{name}</div>
+            <div style="font-size: 12px; color: #0F172A; font-weight: 900;">{info['price']}</div>
+            <div style="font-size: 9px; font-weight: 800; color: {'#16A34A' if info['chg'] >= 0 else '#DC2626'};">{info['chg']}%</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-st.markdown("""
-<div style="display: flex; gap: 10px; margin-bottom: 10px;">
-    <div style="flex: 1; background: #E0F2FE; padding: 8px; border-radius: 6px; text-align: center; font-size: 11px; font-weight: 800; color: #0369A1;">
-        📈 ADVANCE: <b>34</b> | DECLINE: <b>16</b>
-    </div>
-    <div style="flex: 1; background: #F3E8FF; padding: 8px; border-radius: 6px; text-align: center; font-size: 11px; font-weight: 800; color: #6B21A8;">
-        📊 PCR: <b>1.08</b> | ⏰ EXPIRY DECAY ACTIVE
-    </div>
-</div>
-""", unsafe_allow_html=True)
+st.markdown("<br>", unsafe_allow_html=True)
 
 def get_expiry_aware_ltp(strike, is_call, spot):
     diff = (spot - strike) if is_call else (strike - spot)
@@ -158,7 +136,7 @@ with tab_trades:
         card_cls, banner_cls, rec_cls, rec, status_msg = ("analysis-card", "banner-running", "bg-hold", "HOLD", f"🟢 ACTIVE POSITION — LTP ₹{ltp}") if ltp > sl else ("analysis-card card-sl", "banner-sl", "bg-exit", "EXIT", f"🚨 SL HIT — LTP ₹{ltp}")
         st.markdown(f"""
         <div class="{card_cls}">
-            <div class="status-banner {banner_cls}"><span>{status_msg}</span><span>🔄 SYNCED</span></div>
+            <div class="status-banner {banner_cls}"><span>{status_msg}</span><span>🔄 EXPIRY SYNCED</span></div>
             <div class="card-header"><span class="symbol-title">{s['symbol']}</span><span class="badge-rec {rec_cls}">{rec}</span></div>
             <div class="card-grid">
                 <div><div class="grid-lbl">LTP</div><div class="grid-val" style="color:#DC2626;">₹{ltp}</div></div>
@@ -178,7 +156,7 @@ with tab_eval:
     e_ltp = get_expiry_aware_ltp(u_strike, is_ce, spot_price)
     st.markdown(f"""
     <div class="analysis-card">
-        <div class="status-banner banner-running"><span>🎯 EVALUATION</span><span>OK</span></div>
+        <div class="status-banner banner-running"><span>🎯 EXPIRY-AWARE EVALUATION</span><span>OK</span></div>
         <div class="card-header"><span class="symbol-title">{selected_index} {u_strike} {'CE' if is_ce else 'PE'}</span><span class="badge-rec bg-buy">READY</span></div>
         <div class="card-grid">
             <div><div class="grid-lbl">LTP</div><div class="grid-val">₹{e_ltp}</div></div>
@@ -190,11 +168,11 @@ with tab_eval:
     """, unsafe_allow_html=True)
 
 with tab_btst:
-    st.subheader("🎯 BTST Zone")
+    st.subheader("🎯 BTST Zone (Expiry Decay Considered)")
     st.markdown(f"""
     <div class="analysis-card">
-        <div class="status-banner banner-running"><span>🌙 OVERNIGHT</span><span>3:15 PM</span></div>
-        <div class="card-header"><span class="symbol-title">{selected_index} {btst_strike} CE</span><span class="badge-rec bg-buy">BTST</span></div>
+        <div class="status-banner banner-running"><span>🌙 OVERNIGHT HOLD</span><span>3:15 PM</span></div>
+        <div class="card-header"><span class="symbol-title">{selected_index} {btst_strike} CE (BTST)</span><span class="badge-rec bg-buy">BTST BUY</span></div>
         <div class="card-grid">
             <div><div class="grid-lbl">BUY RANGE</div><div class="grid-val">₹{ce_btst_ltp}</div></div>
             <div><div class="grid-lbl">SL</div><div class="grid-val">₹{round(ce_btst_ltp*0.4, 1)}</div></div>
