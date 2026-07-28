@@ -36,7 +36,7 @@ def render_clean_html(html_str):
     st.markdown(html_str.strip(), unsafe_allow_html=True)
 
 # ------------------------------------------------------------------
-# COMPACT STYLES
+# COMPACT STYLE
 # ------------------------------------------------------------------
 render_clean_html("""
 <style>
