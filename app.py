@@ -3,10 +3,10 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import yfinance as yf
-from streamlit_autorun import autorun
+import time
 
 # ------------------------------------------------------------------
-# 1. AUTO-REFRESH ENGINE (3 SECOND SYNC)
+# 1. PAGE CONFIGURATION
 # ------------------------------------------------------------------
 st.set_page_config(
     page_title="PRO TERMINAL - ZERO MISMATCH",
@@ -14,8 +14,6 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
-
-autorun(interval=3000, key="auto_sync_refresh")
 
 st.markdown("""
 <style>
@@ -93,7 +91,7 @@ def get_real_market_data():
             data_res[name] = {"price": 23963.00 if name == "NIFTY" else 56728.50, "chg": -0.14}
     return data_res
 
-st.title("⚡ PRO MASTER TERMINAL (ZERO MISMATCH ENGINE)")
+st.title("⚡ PRO MASTER TERMINAL (STABLE SYNC)")
 
 selected_index = st.selectbox("🎯 Select Active Index", ["NIFTY", "BANKNIFTY", "FINNIFTY", "MIDCPNIFTY"], index=0)
 
