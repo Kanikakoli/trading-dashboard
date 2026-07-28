@@ -5,10 +5,10 @@ import plotly.graph_objects as go
 import yfinance as yf
 
 # ------------------------------------------------------------------
-# 1. PAGE CONFIGURATION
+# 1. PAGE CONFIGURATION & COMPACT STYLING
 # ------------------------------------------------------------------
 st.set_page_config(
-    page_title="PRO TERMINAL - FULL INDICES & EXPIRY SYNC",
+    page_title="PRO TERMINAL - OPTIMIZED",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -17,41 +17,60 @@ st.set_page_config(
 st.markdown("""
 <style>
 .stApp { background-color: #F8FAFC; color: #0F172A; }
-.block-container { padding: 0.6rem 0.5rem !important; }
+.block-container { padding: 0.4rem 0.4rem !important; max-width: 100% !important; }
+
+/* Compact Horizontal Ticker Scroller */
+.ticker-container {
+    display: flex;
+    overflow-x: auto;
+    gap: 6px;
+    padding-bottom: 6px;
+    margin-bottom: 8px;
+    white-space: nowrap;
+}
+.ticker-card {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 6px;
+    padding: 6px 10px;
+    min-width: 95px;
+    text-align: center;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+}
+.ticker-title { font-size: 9px; color: #64748B; font-weight: 800; }
+.ticker-val { font-size: 11px; color: #0F172A; font-weight: 900; margin: 1px 0; }
+.ticker-chg { font-size: 9px; font-weight: 800; }
 
 .status-banner {
-    padding: 6px 12px; border-radius: 6px; font-size: 11px;
-    font-weight: 800; margin-bottom: 8px; display: flex;
+    padding: 5px 10px; border-radius: 5px; font-size: 10px;
+    font-weight: 800; margin-bottom: 6px; display: flex;
     justify-content: space-between; align-items: center;
 }
 .banner-running { background-color: #DCFCE7; color: #15803D; border: 1px solid #86EFAC; }
 .banner-sl { background-color: #FEE2E2; color: #B91C1C; border: 1px solid #FCA5A5; }
-.banner-wait { background-color: #FEF3C7; color: #B45309; border: 1px solid #FDE68A; }
 
 .analysis-card {
     background: #FFFFFF; border: 1px solid #E2E8F0;
-    border-left: 6px solid #16A34A; border-radius: 10px;
-    padding: 14px; margin-bottom: 14px; box-shadow: 0 3px 6px rgba(0,0,0,0.04);
+    border-left: 5px solid #16A34A; border-radius: 8px;
+    padding: 10px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.03);
 }
 .card-sl { border-left-color: #DC2626; }
-.card-wait { border-left-color: #D97706; }
 
 .card-header { display: flex; justify-content: space-between; align-items: center; }
-.symbol-title { font-size: 16px; font-weight: 900; color: #0F172A; }
+.symbol-title { font-size: 14px; font-weight: 900; color: #0F172A; }
 
-.badge-rec { font-size: 10px; font-weight: 800; padding: 4px 10px; border-radius: 6px; color: white; }
+.badge-rec { font-size: 9px; font-weight: 800; padding: 3px 8px; border-radius: 4px; color: white; }
 .bg-buy { background-color: #16A34A; }
 .bg-exit { background-color: #DC2626; }
-.bg-wait { background-color: #D97706; }
 .bg-hold { background-color: #2563EB; }
 
 .card-grid { 
-    display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; 
-    background: #F1F5F9; padding: 10px; border-radius: 8px; 
-    text-align: center; margin-top: 8px; 
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; 
+    background: #F1F5F9; padding: 6px; border-radius: 6px; 
+    text-align: center; margin-top: 6px; 
 }
-.grid-lbl { font-size: 9px; color: #64748B; font-weight: 800; }
-.grid-val { font-size: 13px; color: #0F172A; font-weight: 900; }
+.grid-lbl { font-size: 8px; color: #64748B; font-weight: 800; }
+.grid-val { font-size: 11px; color: #0F172A; font-weight: 900; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -78,34 +97,36 @@ def get_real_market_data():
             chg_pct = round(((price - prev_close) / prev_close) * 100, 2)
             data_res[name] = {"price": price, "chg": chg_pct}
         except:
-            fallback = {"NIFTY": 23985.35, "BANKNIFTY": 51200.0, "FINNIFTY": 23400.0, "MIDCPNIFTY": 12500.0, "SENSEX": 78500.0, "NIFTY IT": 38200.0}
-            data_res[name] = {"price": fallback.get(name, 20000.0), "chg": -0.08}
+            fallback = {"NIFTY": 23985.35, "BANKNIFTY": 51200.0, "FINNIFTY": 23400.0, "MIDCPNIFTY": 12500.0, "SENSEX": 76780.06, "NIFTY IT": 30418.35}
+            data_res[name] = {"price": fallback.get(name, 20000.0), "chg": 0.02}
     return data_res
 
-st.title("⚡ PRO MASTER TERMINAL")
-
-selected_index = st.selectbox("🎯 Select Active Index", list(tickers.keys()), index=0)
+st.markdown("<h3 style='margin:0; padding:0; font-size:18px;'>⚡ PRO TERMINAL</h3>", unsafe_allow_html=True)
 
 market_data = get_real_market_data()
-spot_price = market_data[selected_index]["price"]
 
+# Dropdown with "ALL INDICES" option included
+index_options = ["ALL INDICES"] + list(tickers.keys())
+selected_index = st.selectbox("🎯 Select Active Index", index_options, index=0)
+
+# Compact Horizontal Ticker Bar (Saves vertical space completely)
+ticker_html = '<div class="ticker-container">'
+for name, info in market_data.items():
+    color = "#16A34A" if info['chg'] >= 0 else "#DC2626"
+    ticker_html += f"""
+    <div class="ticker-card">
+        <div class="ticker-title">{name}</div>
+        <div class="ticker-val">{info['price']}</div>
+        <div class="ticker-chg" style="color: {color};">{info['chg']}%</div>
+    </div>
+    """
+ticker_html += '</div>'
+st.markdown(ticker_html, unsafe_allow_html=True)
+
+# Determine active spot based on selection
+active_spot = market_data["NIFTY"]["price"] if selected_index == "ALL INDICES" else market_data[selected_index]["price"]
 step = 100 if selected_index in ["BANKNIFTY", "SENSEX", "NIFTY IT"] else 50
-atm_strike = int(round(spot_price / step) * step)
-
-# Safe Native Columns Ticker Bar (No HTML string breakage)
-cols = st.columns(len(market_data))
-for i, (name, info) in enumerate(market_data.items()):
-    with cols[i]:
-        chg_color = "🟢" if info['chg'] >= 0 else "🔴"
-        st.markdown(f"""
-        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; padding: 6px; text-align: center;">
-            <div style="font-size: 9px; color: #64748B; font-weight: 800;">{name}</div>
-            <div style="font-size: 12px; color: #0F172A; font-weight: 900;">{info['price']}</div>
-            <div style="font-size: 9px; font-weight: 800; color: {'#16A34A' if info['chg'] >= 0 else '#DC2626'};">{info['chg']}%</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-st.markdown("<br>", unsafe_allow_html=True)
+atm_strike = int(round(active_spot / step) * step) if selected_index != "ALL INDICES" else 24000
 
 def get_expiry_aware_ltp(strike, is_call, spot):
     diff = (spot - strike) if is_call else (strike - spot)
@@ -116,27 +137,32 @@ def get_expiry_aware_ltp(strike, is_call, spot):
         return round(decay_val if abs(diff) <= 50 else 0.5, 2)
 
 itm_strike = atm_strike - step
-ce_itm_ltp = get_expiry_aware_ltp(itm_strike, True, spot_price)
-ce_atm_ltp = get_expiry_aware_ltp(atm_strike, True, spot_price)
+ce_itm_ltp = get_expiry_aware_ltp(itm_strike, True, active_spot)
+ce_atm_ltp = get_expiry_aware_ltp(atm_strike, True, active_spot)
 btst_strike = atm_strike + step
-ce_btst_ltp = get_expiry_aware_ltp(btst_strike, True, spot_price)
+ce_btst_ltp = get_expiry_aware_ltp(btst_strike, True, active_spot)
 
+# ------------------------------------------------------------------
+# 3. MASTER TABS
+# ------------------------------------------------------------------
 tab_trades, tab_eval, tab_btst, tab_hz, tab_chain, tab_chart = st.tabs([
-    "🚀 Live Trades", "💡 AI Evaluator", "🎯 BTST Zone", "🔥 Hero-Zero", "📊 Option Chain", "📈 OI Chart"
+    "🚀 Live", "💡 AI", "🎯 BTST", "🔥 H-Z", "📊 Chain", "📈 Chart"
 ])
 
 with tab_trades:
-    st.subheader(f"🚀 Active Live Trades for {selected_index} (Spot: {spot_price})")
+    disp_name = "All Indices Overview" if selected_index == "ALL INDICES" else selected_index
+    st.markdown(f"<div style='font-size:12px; font-weight:800; margin-bottom:6px;'>🚀 Active Trades ({disp_name})</div>", unsafe_allow_html=True)
+    
     signals = [
-        {"symbol": f"{selected_index} {itm_strike} CE", "ltp": ce_itm_ltp, "entry": 45.60, "sl": 15.00, "target": 90.00, "state": "HOLD"},
-        {"symbol": f"{selected_index} {atm_strike} CE", "ltp": ce_atm_ltp, "entry": 18.20, "sl": 5.00, "target": 45.00, "state": "WAIT"}
+        {"symbol": f"{selected_index if selected_index!='ALL INDICES' else 'NIFTY'} {itm_strike} CE", "ltp": ce_itm_ltp, "entry": 45.60, "sl": 15.00, "target": 90.00},
+        {"symbol": f"{selected_index if selected_index!='ALL INDICES' else 'NIFTY'} {atm_strike} CE", "ltp": ce_atm_ltp, "entry": 18.20, "sl": 5.00, "target": 45.00}
     ]
     for s in signals:
-        ltp, entry, sl, state = s["ltp"], s["entry"], s["sl"], s["state"]
-        card_cls, banner_cls, rec_cls, rec, status_msg = ("analysis-card", "banner-running", "bg-hold", "HOLD", f"🟢 ACTIVE POSITION — LTP ₹{ltp}") if ltp > sl else ("analysis-card card-sl", "banner-sl", "bg-exit", "EXIT", f"🚨 SL HIT — LTP ₹{ltp}")
+        ltp, entry, sl = s["ltp"], s["entry"], s["sl"]
+        card_cls, banner_cls, rec_cls, rec, status_msg = ("analysis-card", "banner-running", "bg-hold", "HOLD", f"🟢 ACTIVE — LTP ₹{ltp}") if ltp > sl else ("analysis-card card-sl", "banner-sl", "bg-exit", "EXIT", f"🚨 SL HIT — LTP ₹{ltp}")
         st.markdown(f"""
         <div class="{card_cls}">
-            <div class="status-banner {banner_cls}"><span>{status_msg}</span><span>🔄 EXPIRY SYNCED</span></div>
+            <div class="status-banner {banner_cls}"><span>{status_msg}</span><span>🔄 SYNC</span></div>
             <div class="card-header"><span class="symbol-title">{s['symbol']}</span><span class="badge-rec {rec_cls}">{rec}</span></div>
             <div class="card-grid">
                 <div><div class="grid-lbl">LTP</div><div class="grid-val" style="color:#DC2626;">₹{ltp}</div></div>
@@ -148,16 +174,16 @@ with tab_trades:
         """, unsafe_allow_html=True)
 
 with tab_eval:
-    st.subheader("💡 AI Option Trade Evaluator")
+    st.markdown("<div style='font-size:12px; font-weight:800; margin-bottom:6px;'>💡 AI Trade Evaluator</div>", unsafe_allow_html=True)
     col1, col2 = st.columns(2)
     with col1: u_strike = st.number_input("Strike", value=int(atm_strike), step=step)
     with col2: u_opt = st.selectbox("Type", ["CE (Call)", "PE (Put)"])
     is_ce = "CE" in u_opt
-    e_ltp = get_expiry_aware_ltp(u_strike, is_ce, spot_price)
+    e_ltp = get_expiry_aware_ltp(u_strike, is_ce, active_spot)
     st.markdown(f"""
     <div class="analysis-card">
-        <div class="status-banner banner-running"><span>🎯 EXPIRY-AWARE EVALUATION</span><span>OK</span></div>
-        <div class="card-header"><span class="symbol-title">{selected_index} {u_strike} {'CE' if is_ce else 'PE'}</span><span class="badge-rec bg-buy">READY</span></div>
+        <div class="status-banner banner-running"><span>🎯 EVALUATION</span><span>OK</span></div>
+        <div class="card-header"><span class="symbol-title">{u_strike} {'CE' if is_ce else 'PE'}</span><span class="badge-rec bg-buy">READY</span></div>
         <div class="card-grid">
             <div><div class="grid-lbl">LTP</div><div class="grid-val">₹{e_ltp}</div></div>
             <div><div class="grid-lbl">ENTRY</div><div class="grid-val">₹{round(e_ltp*1.05, 1)}</div></div>
@@ -168,13 +194,13 @@ with tab_eval:
     """, unsafe_allow_html=True)
 
 with tab_btst:
-    st.subheader("🎯 BTST Zone (Expiry Decay Considered)")
+    st.markdown("<div style='font-size:12px; font-weight:800; margin-bottom:6px;'>🎯 BTST Zone (Expiry Decay Active)</div>", unsafe_allow_html=True)
     st.markdown(f"""
     <div class="analysis-card">
-        <div class="status-banner banner-running"><span>🌙 OVERNIGHT HOLD</span><span>3:15 PM</span></div>
-        <div class="card-header"><span class="symbol-title">{selected_index} {btst_strike} CE (BTST)</span><span class="badge-rec bg-buy">BTST BUY</span></div>
+        <div class="status-banner banner-running"><span>🌙 OVERNIGHT</span><span>3:15 PM</span></div>
+        <div class="card-header"><span class="symbol-title">{btst_strike} CE</span><span class="badge-rec bg-buy">BTST</span></div>
         <div class="card-grid">
-            <div><div class="grid-lbl">BUY RANGE</div><div class="grid-val">₹{ce_btst_ltp}</div></div>
+            <div><div class="grid-lbl">BUY</div><div class="grid-val">₹{ce_btst_ltp}</div></div>
             <div><div class="grid-lbl">SL</div><div class="grid-val">₹{round(ce_btst_ltp*0.4, 1)}</div></div>
             <div><div class="grid-lbl">T1</div><div class="grid-val">₹{round(ce_btst_ltp*1.5, 1)}</div></div>
             <div><div class="grid-lbl">T2</div><div class="grid-val">₹{round(ce_btst_ltp*2.0, 1)}</div></div>
@@ -183,34 +209,33 @@ with tab_btst:
     """, unsafe_allow_html=True)
 
 with tab_hz:
-    st.subheader("🔥 Hero-Zero Special")
+    st.markdown("<div style='font-size:12px; font-weight:800; margin-bottom:6px;'>🔥 Hero-Zero Special</div>", unsafe_allow_html=True)
     st.markdown(f"""
     <div class="analysis-card" style="border-left-color: #9333EA;">
         <div class="status-banner" style="background: #F3E8FF; color: #6B21A8;"><span>🚀 SPIKE</span><span>ACTIVE</span></div>
-        <div class="card-header"><span class="symbol-title">{selected_index} {atm_strike} CE</span><span class="badge-rec bg-hold">HERO-ZERO</span></div>
+        <div class="card-header"><span class="symbol-title">{atm_strike} CE</span><span class="badge-rec bg-hold">HERO</span></div>
         <div class="card-grid">
-            <div><div class="grid-lbl">ENTRY</div><div class="grid-val">₹2.00 - ₹5.00</div></div>
-            <div><div class="grid-lbl">SL</div><div class="grid-val">₹0.00</div></div>
-            <div><div class="grid-lbl">T1</div><div class="grid-val">₹15.00</div></div>
-            <div><div class="grid-lbl">T2</div><div class="grid-val">₹25.00</div></div>
+            <div><div class="grid-lbl">ENTRY</div><div class="grid-val">₹2-₹5</div></div>
+            <div><div class="grid-lbl">SL</div><div class="grid-val">₹0</div></div>
+            <div><div class="grid-lbl">T1</div><div class="grid-val">₹15</div></div>
+            <div><div class="grid-lbl">T2</div><div class="grid-val">₹25</div></div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
 with tab_chain:
-    st.subheader(f"📊 {selected_index} Option Chain")
+    st.markdown("<div style='font-size:12px; font-weight:800; margin-bottom:6px;'>📊 Option Chain Matrix</div>", unsafe_allow_html=True)
     chain_df = pd.DataFrame([
-        {"CALL OI": "1.00L", "CALL PRICE": f"₹{get_expiry_aware_ltp(atm_strike-step, True, spot_price)}", "STRIKE": atm_strike-step, "PUT PRICE": f"₹{get_expiry_aware_ltp(atm_strike-step, False, spot_price)}", "PUT OI": "3.55L"},
-        {"CALL OI": "2.38L", "CALL PRICE": f"₹{ce_itm_ltp}", "STRIKE": atm_strike, "PUT PRICE": f"₹{get_expiry_aware_ltp(atm_strike, False, spot_price)}", "PUT OI": "7.15L"},
-        {"CALL OI": "9.32L", "CALL PRICE": f"₹{ce_atm_ltp}", "STRIKE": atm_strike+step, "PUT PRICE": f"₹{get_expiry_aware_ltp(atm_strike+step, False, spot_price)}", "PUT OI": "5.66L"},
+        {"CALL OI": "1.00L", "CALL": f"₹{get_expiry_aware_ltp(atm_strike-step, True, active_spot)}", "STRIKE": atm_strike-step, "PUT": f"₹{get_expiry_aware_ltp(atm_strike-step, False, active_spot)}", "PUT OI": "3.55L"},
+        {"CALL OI": "2.38L", "CALL": f"₹{ce_itm_ltp}", "STRIKE": atm_strike, "PUT": f"₹{get_expiry_aware_ltp(atm_strike, False, active_spot)}", "PUT OI": "7.15L"},
+        {"CALL OI": "9.32L", "CALL": f"₹{ce_atm_ltp}", "STRIKE": atm_strike+step, "PUT": f"₹{get_expiry_aware_ltp(atm_strike+step, False, active_spot)}", "PUT OI": "5.66L"},
     ])
     st.dataframe(chain_df, use_container_width=True, hide_index=True)
 
 with tab_chart:
-    st.subheader(f"📈 OI Distribution")
+    st.markdown("<div style='font-size:12px; font-weight:800; margin-bottom:6px;'>📈 OI Distribution</div>", unsafe_allow_html=True)
     fig = go.Figure()
     fig.add_trace(go.Bar(x=[str(atm_strike-step), str(atm_strike), str(atm_strike+step)], y=[1.00, 2.38, 9.32], name='Call OI', marker_color='#DC2626'))
     fig.add_trace(go.Bar(x=[str(atm_strike-step), str(atm_strike), str(atm_strike+step)], y=[3.55, 7.15, 5.66], name='Put OI', marker_color='#16A34A'))
-    fig.update_layout(barmode='group', height=300, template="plotly_white")
+    fig.update_layout(barmode='group', height=250, margin=dict(l=10, r=10, t=10, b=10), template="plotly_white")
     st.plotly_chart(fig, use_container_width=True)
-
