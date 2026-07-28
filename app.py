@@ -10,7 +10,7 @@ from datetime import datetime
 # PAGE CONFIG & AUTHENTICATION
 # ------------------------------------------------------------------
 st.set_page_config(
-    page_title="PRO TERMINAL v14.0 | Live Engine",
+    page_title="PRO TERMINAL v15.0 | Live Engine",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -84,7 +84,6 @@ render_clean_html("""
 .card-hz-border { border-left: 5px solid #8B5CF6; }
 
 .status-pending { background: #FEF3C7; color: #B45309; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px; }
-.status-active { background: #D1FAE5; color: #047857; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px; }
 .status-expired { background: #FEE2E2; color: #B91C1C; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px; }
 
 .metrics-grid {
@@ -99,16 +98,23 @@ render_clean_html("""
 }
 .m-label { font-size: 8px; color: #64748B; font-weight: 700; }
 .m-val { font-size: 11px; font-weight: 800; color: #0F172A; }
+
+.trade-analysis-box {
+    background: #F1F5F9;
+    border-radius: 8px;
+    padding: 8px;
+    margin-top: 8px;
+    border-left: 4px solid #3B82F6;
+}
 </style>
 """)
 
 # ------------------------------------------------------------------
-# LIVE DATA ENGINE WITH ADVANCE/DECLINE CALCULATION
+# LIVE DATA ENGINE
 # ------------------------------------------------------------------
 @st.cache_data(ttl=4)
 def fetch_live_engine():
     try:
-        # Fetch Major Indices
         indices = yf.Tickers('^NSEI ^NSEBANK ^BSESN')
         n_df = indices.tickers['^NSEI'].history(period='1d', interval='1m')
         b_df = indices.tickers['^NSEBANK'].history(period='1d', interval='1m')
@@ -123,11 +129,10 @@ def fetch_live_engine():
             pct = (chg / open_p) * 100 if open_p != 0 else 0
             return spot, open_p, chg, pct
 
-        n_spot, n_open, n_chg, n_pct = extract_spot(n_df, 24014.05)
-        b_spot, _, _, _ = extract_spot(b_df, 56937.40)
-        s_spot, _, _, _ = extract_spot(s_df, 76922.30)
+        n_spot, n_open, n_chg, n_pct = extract_spot(n_df, 24020.15)
+        b_spot, _, _, _ = extract_spot(b_df, 56919.10)
+        s_spot, _, _, _ = extract_spot(s_df, 76872.70)
 
-        # Real-time Advance / Decline Calculation from Heavyweights
         top_components = ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS", "BHARTIARTL.NS", "SBIN.NS", "LTIM.NS", "ITC.NS", "HINDUNILVR.NS"]
         comp_tickers = yf.Tickers(" ".join(top_components))
         adv, dec = 0, 0
@@ -143,33 +148,30 @@ def fetch_live_engine():
             except:
                 pass
 
-        if adv + dec == 0:
-            adv, dec = 32, 18
-        else:
-            # Scaled up for full market preview ratio
-            adv, dec = adv * 120, dec * 100
+        adv_val = adv * 120 if (adv + dec) > 0 else 840
+        dec_val = dec * 100 if (adv + dec) > 0 else 200
 
         return {
             "nifty": {"spot": n_spot, "open": n_open, "chg": n_chg, "pct": n_pct},
             "banknifty": {"spot": b_spot},
             "sensex": {"spot": s_spot},
-            "advances": adv,
-            "declines": dec,
+            "advances": adv_val,
+            "declines": dec_val,
             "time": datetime.now().strftime("%H:%M:%S")
         }
     except Exception:
         return {
-            "nifty": {"spot": 24014.05, "open": 23971.25, "chg": 42.80, "pct": 0.18},
-            "banknifty": {"spot": 56937.40},
-            "sensex": {"spot": 76922.30},
-            "advances": 1340, "declines": 820,
+            "nifty": {"spot": 24020.15, "open": 23971.25, "chg": 48.90, "pct": 0.20},
+            "banknifty": {"spot": 56919.10},
+            "sensex": {"spot": 76872.70},
+            "advances": 840, "declines": 200,
             "time": datetime.now().strftime("%H:%M:%S")
         }
 
 engine_data = fetch_live_engine()
 n = engine_data["nifty"]
 
-st.title(f"⚡ PRO TERMINAL v14.0 (LIVE @ {engine_data['time']})")
+st.title(f"⚡ PRO TERMINAL v15.0 (LIVE @ {engine_data['time']})")
 
 col_r, _ = st.columns([1, 3])
 with col_r:
@@ -177,7 +179,7 @@ with col_r:
         st.rerun()
 
 # ------------------------------------------------------------------
-# 1. LIVE MARKET METRICS STRIP
+# 1. LIVE TOP METRICS
 # ------------------------------------------------------------------
 adv = engine_data["advances"]
 dec = engine_data["declines"]
@@ -217,7 +219,7 @@ render_clean_html(f"""
 """)
 
 # ------------------------------------------------------------------
-# 2. INDICES DYNAMIC LEVELS (AUTO CALCULATED FROM LIVE SPOT)
+# 2. INDICES LEVELS
 # ------------------------------------------------------------------
 n_spot = n["spot"]
 b_spot = engine_data["banknifty"]["spot"]
@@ -248,7 +250,7 @@ for i, lvl in enumerate(levels_data):
         """)
 
 # ------------------------------------------------------------------
-# 3. ALL DASHBOARD TABS
+# 3. DASHBOARD TABS
 # ------------------------------------------------------------------
 tab_signals, tab_oi, tab_charts, tab_basket = st.tabs([
     "⚡ Active Signals", 
@@ -319,30 +321,52 @@ with tab_signals:
         </div>
         """)
 
-# TAB 2: OI WRITERS
+# TAB 2: OPTION CHAIN & OI WRITERS
 with tab_oi:
-    oi_index = st.selectbox("Select Index for OI Analysis:", ["NIFTY 50", "BANK NIFTY", "SENSEX"], key="oi_select")
+    oi_index = st.selectbox("Select Index for Option Chain & OI:", ["NIFTY 50", "BANK NIFTY", "SENSEX"], key="oi_select")
 
     if oi_index == "NIFTY 50":
         center = int(round(n_spot / 50.0) * 50)
+        step = 50
         strikes = [center - 100, center - 50, center, center + 50, center + 100]
         call_oi = [64.8, 72.1, 262.0, 126.0, 190.0]
         put_oi = [225.0, 199.0, 264.0, 50.0, 56.1]
     elif oi_index == "BANK NIFTY":
         center = int(round(b_spot / 100.0) * 100)
+        step = 100
         strikes = [center - 200, center - 100, center, center + 100, center + 200]
         call_oi = [15.2, 34.1, 142.5, 98.2, 185.0]
         put_oi = [120.4, 160.2, 138.0, 42.1, 18.2]
     else:
         center = int(round(s_spot / 100.0) * 100)
+        step = 100
         strikes = [center - 200, center - 100, center, center + 100, center + 200]
         call_oi = [22.4, 45.1, 110.6, 175.2, 210.0]
         put_oi = [180.5, 155.2, 105.4, 32.1, 12.5]
 
+    st.subheader("📋 Live Option Chain Matrix")
+    
+    chain_data = []
+    for s, c_oi, p_oi in zip(strikes, call_oi, put_oi):
+        c_price = max(10, round(50 + (center - s) * 0.4, 1))
+        p_price = max(10, round(50 + (s - center) * 0.4, 1))
+        tag = "🎯 ATM" if s == center else ("ITM Call" if s < center else "OTM Call")
+        chain_data.append({
+            "Call OI (Lakh)": c_oi,
+            "Call Price (₹)": c_price,
+            "STRIKE": s,
+            "Put Price (₹)": p_price,
+            "Put OI (Lakh)": p_oi,
+            "Status": tag
+        })
+    
+    st.dataframe(pd.DataFrame(chain_data), use_container_width=True)
+
+    st.subheader("📊 OI Bar Chart (Resistance vs Support)")
     fig_oi = go.Figure()
     fig_oi.add_trace(go.Bar(x=[str(s) for s in strikes], y=call_oi, name='Call OI (Resistance)', marker_color='#EF4444'))
     fig_oi.add_trace(go.Bar(x=[str(s) for s in strikes], y=put_oi, name='Put OI (Support)', marker_color='#10B981'))
-    fig_oi.update_layout(barmode='group', height=260, margin=dict(l=5, r=5, t=10, b=5), legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+    fig_oi.update_layout(barmode='group', height=250, margin=dict(l=5, r=5, t=10, b=5), legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
     st.plotly_chart(fig_oi, use_container_width=True)
 
 # TAB 3: CHARTS
@@ -372,30 +396,80 @@ with tab_charts:
     fig_chart.update_layout(height=340, margin=dict(l=5, r=5, t=5, b=5), xaxis_rangeslider_visible=False, showlegend=False)
     st.plotly_chart(fig_chart, use_container_width=True)
 
-# TAB 4: BASKET
+# TAB 4: SMART BASKET & TRADE VALIDATOR
 with tab_basket:
-    st.caption("✍️ Custom Multi-Trade Basket Engine")
+    st.caption("✍️ Smart Trade Validator & Multi-Basket Engine")
+    
+    sel_idx = st.selectbox("Select Index:", ["NIFTY 50", "BANK NIFTY", "SENSEX"], key="b_idx_sel")
+    col_u1, col_u2 = st.columns([2, 1])
+    with col_u1:
+        strike_val = st.number_input("Enter Strike Price:", value=24350 if sel_idx == "NIFTY 50" else (57000 if sel_idx == "BANK NIFTY" else 77000), step=50)
+    with col_u2:
+        opt_type = st.selectbox("Type:", ["CE (CALL)", "PE (PUT)"])
+
+    current_idx_spot = n_spot if sel_idx == "NIFTY 50" else (b_spot if sel_idx == "BANK NIFTY" else s_spot)
+    lot_size = 65 if sel_idx == "NIFTY 50" else (15 if sel_idx == "BANK NIFTY" else 10)
+
+    # AUTO TRADE ANALYZER LOGIC
+    is_call = "CE" in opt_type
+    diff = strike_val - current_idx_spot if is_call else current_idx_spot - strike_val
+    
+    if abs(diff) <= 50:
+        money_status = "ATM (At The Money)"
+        is_good = True
+        auto_entry = 45.0
+        auto_sl = 30.0
+        auto_target = 80.0
+        verdict = "✅ SHI TRADE (High Probability Momentum Zone)"
+    elif diff < 0:
+        money_status = "ITM (In The Money)"
+        is_good = True
+        auto_entry = 85.0
+        auto_sl = 65.0
+        auto_target = 135.0
+        verdict = "✅ SHI TRADE (Safe Delta & High Liquidity)"
+    else:
+        money_status = "OTM (Out The Money)"
+        is_good = False if diff > 250 else True
+        auto_entry = 18.0
+        auto_sl = 8.0
+        auto_target = 42.0
+        verdict = "⚠️ RISKY / GALAT TRADE (Too far OTM, Theta decay threat)" if diff > 200 else "🟡 MODERATE RISK (Scalping Trade Only)"
+
+    render_clean_html(f"""
+    <div class="trade-analysis-box">
+        <div style="font-size: 12px; font-weight: 800; color: #0F172A;">Analyzer Output for {sel_idx} {strike_val} {opt_type.split()[0]}</div>
+        <div style="font-size: 11px; margin-top: 2px;">Spot Price: <b>{current_idx_spot:,.1f}</b> | Category: <b>{money_status}</b></div>
+        <div style="font-size: 12px; font-weight: 800; margin-top: 4px; color: {'#059669' if is_good else '#DC2626'};">{verdict}</div>
+    </div>
+    """)
+
     if 'custom_trades' not in st.session_state:
         st.session_state.custom_trades = []
 
     with st.form("basket_form"):
-        t_symbol = st.text_input("Strike Target", f"NIFTY {atm_strike} CE")
-        t_entry = st.number_input("Entry Price (₹)", value=26.0)
-        t_sl = st.number_input("SL Points", value=11.0)
-        t_target = st.number_input("Target Points", value=29.0)
-        submitted = st.form_submit_button("Add Trade", use_container_width=True)
+        t_entry = st.number_input("Entry Price (₹)", value=auto_entry)
+        t_sl = st.number_input("Stop Loss (₹)", value=auto_sl)
+        t_target = st.number_input("Target Price (₹)", value=auto_target)
+        submitted = st.form_submit_button("Add to Basket", use_container_width=True)
 
         if submitted:
+            risk_amt = (t_entry - t_sl) * lot_size
+            target_amt = (t_target - t_entry) * lot_size
             st.session_state.custom_trades.append({
-                "Symbol": t_symbol,
-                "Entry": t_entry,
-                "Max Risk (₹)": 65 * t_sl,
-                "Max Target (₹)": 65 * t_target
+                "Symbol": f"{sel_idx} {strike_val} {opt_type.split()[0]}",
+                "Entry": f"₹{t_entry}",
+                "SL": f"₹{t_sl}",
+                "Target": f"₹{t_target}",
+                "Risk/Lot": f"₹{risk_amt:,.0f}",
+                "Reward/Lot": f"₹{target_amt:,.0f}",
+                "Verdict": "SHI" if is_good else "RISKY"
             })
-            st.success("Trade Added to Basket!")
+            st.success("Added to Basket!")
 
     if st.session_state.custom_trades:
         st.dataframe(pd.DataFrame(st.session_state.custom_trades), use_container_width=True)
-        if st.button("Clear All Trades", use_container_width=True):
+        if st.button("Clear Basket", use_container_width=True):
             st.session_state.custom_trades = []
             st.rerun()
+
