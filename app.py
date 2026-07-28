@@ -3,13 +3,12 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
-import textwrap
 
 # ------------------------------------------------------------------
 # PAGE CONFIG
 # ------------------------------------------------------------------
 st.set_page_config(
-    page_title="PRO TERMINAL v8.3 | Compact Mobile Edition",
+    page_title="PRO TERMINAL v8.4 | Fixed Layout",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -32,96 +31,91 @@ if not st.session_state.authenticated:
     st.text_input("Enter Passcode:", type="password", key="passcode_input", on_change=check_passcode)
     st.stop()
 
-def render_html(html_str):
-    st.markdown(textwrap.dedent(html_str), unsafe_allow_html=True)
+# Helper function with explicit string clean-up
+def render_clean_html(html_str):
+    st.markdown(html_str.strip(), unsafe_allow_html=True)
 
 # ------------------------------------------------------------------
-# COMPACT CSS (ELIMINATES MOBILE SPACE WASTAGE)
+# COMPACT MOBILE CSS (ZERO INDENTATION INSIDE STRINGS)
 # ------------------------------------------------------------------
-render_html("""
+render_clean_html("""
 <style>
-    /* Global Spacing Reduction */
-    .block-container {
-        padding-top: 1rem !important;
-        padding-bottom: 1rem !important;
-        padding-left: 0.5rem !important;
-        padding-right: 0.5rem !important;
-    }
-    
-    /* Horizontal Ticker Grid for Mobile */
-    .ticker-bar {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-        justify-content: space-between;
-        margin-bottom: 10px;
-    }
-    .ticker-chip {
-        background: #FFFFFF;
-        border: 1px solid #E2E8F0;
-        border-radius: 8px;
-        padding: 6px 10px;
-        flex: 1 1 calc(33.33% - 6px);
-        min-width: 95px;
-        text-align: center;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.03);
-    }
-    .chip-title { font-size: 10px; color: #64748B; font-weight: 700; text-transform: uppercase; }
-    .chip-val { font-size: 12px; font-weight: 800; color: #0F172A; }
-    .chip-up { font-size: 10px; color: #10B981; font-weight: 700; }
-    .chip-down { font-size: 10px; color: #EF4444; font-weight: 700; }
+.block-container {
+    padding-top: 1rem !important;
+    padding-bottom: 1rem !important;
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+}
+.ticker-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+.ticker-chip {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+    padding: 6px 10px;
+    flex: 1 1 calc(33.33% - 6px);
+    min-width: 95px;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+}
+.chip-title { font-size: 10px; color: #64748B; font-weight: 700; text-transform: uppercase; }
+.chip-val { font-size: 12px; font-weight: 800; color: #0F172A; }
+.chip-up { font-size: 10px; color: #10B981; font-weight: 700; }
+.chip-down { font-size: 10px; color: #EF4444; font-weight: 700; }
 
-    /* Compact Trade Card */
-    .compact-trade-card {
-        background: #FFFFFF;
-        border-radius: 12px;
-        border: 1px solid #E2E8F0;
-        padding: 12px;
-        margin-bottom: 10px;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.04);
-    }
-    .card-call-border { border-left: 5px solid #10B981; }
-    .card-put-border { border-left: 5px solid #EF4444; }
+.compact-trade-card {
+    background: #FFFFFF;
+    border-radius: 12px;
+    border: 1px solid #E2E8F0;
+    padding: 12px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+}
+.card-call-border { border-left: 6px solid #10B981; }
+.card-put-border { border-left: 6px solid #EF4444; }
 
-    .card-header-flex {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 6px;
-    }
-    .strike-title { font-size: 16px; font-weight: 800; color: #0F172A; margin: 0; }
-    
-    .badge-pill-call { background: #D1FAE5; color: #065F46; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 12px; }
-    .badge-pill-put { background: #FEE2E2; color: #991B1B; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 12px; }
+.card-header-flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+.strike-title { font-size: 16px; font-weight: 800; color: #0F172A; margin: 0; }
 
-    /* Compact Grid for Metrics inside Card */
-    .metrics-grid {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 4px;
-        background: #F8FAFC;
-        padding: 8px;
-        border-radius: 8px;
-        text-align: center;
-        margin-top: 8px;
-    }
-    .m-label { font-size: 9px; color: #64748B; font-weight: 700; }
-    .m-val { font-size: 13px; font-weight: 800; color: #0F172A; }
-    .m-sub-up { font-size: 9px; color: #10B981; font-weight: 700; }
-    .m-sub-down { font-size: 9px; color: #EF4444; font-weight: 700; }
+.badge-pill-call { background: #D1FAE5; color: #065F46; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 12px; }
+.badge-pill-put { background: #FEE2E2; color: #991B1B; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 12px; }
 
-    /* CSS Visual Risk/Reward Bar */
-    .rr-bar-container {
-        height: 8px;
-        width: 100%;
-        background: #E2E8F0;
-        border-radius: 4px;
-        display: flex;
-        overflow: hidden;
-        margin-top: 8px;
-    }
-    .rr-risk { background: #EF4444; height: 100%; }
-    .rr-reward { background: #10B981; height: 100%; }
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    background: #F8FAFC;
+    padding: 8px;
+    border-radius: 8px;
+    text-align: center;
+    margin-top: 8px;
+}
+.m-label { font-size: 9px; color: #64748B; font-weight: 700; }
+.m-val { font-size: 13px; font-weight: 800; color: #0F172A; }
+.m-sub-up { font-size: 9px; color: #10B981; font-weight: 700; }
+.m-sub-down { font-size: 9px; color: #EF4444; font-weight: 700; }
+
+.rr-bar-container {
+    height: 8px;
+    width: 100%;
+    background: #E2E8F0;
+    border-radius: 4px;
+    display: flex;
+    overflow: hidden;
+    margin-top: 8px;
+}
+.rr-risk { background: #EF4444; height: 100%; }
+.rr-reward { background: #10B981; height: 100%; }
 </style>
 """)
 
@@ -134,12 +128,12 @@ with st.sidebar:
         st.session_state.authenticated = False
         st.rerun()
 
-st.title("⚡ OPTION TERMINAL v8.3")
+st.title("⚡ OPTION TERMINAL v8.4")
 
 # ------------------------------------------------------------------
-# 1. COMPACT HORIZONTAL GLOBAL TICKERS
+# GLOBAL TICKERS
 # ------------------------------------------------------------------
-render_html("""
+render_clean_html("""
 <div class="ticker-bar">
     <div class="ticker-chip">
         <div class="chip-title">GIFT NIFTY</div>
@@ -170,7 +164,7 @@ render_html("""
 """)
 
 # ------------------------------------------------------------------
-# 2. TABS ARCHITECTURE
+# MAIN TABS
 # ------------------------------------------------------------------
 tab_signals, tab_breadth, tab_portfolio = st.tabs([
     "⚡ Active Signals", 
@@ -179,7 +173,7 @@ tab_signals, tab_breadth, tab_portfolio = st.tabs([
 ])
 
 # ------------------------------------------------------------------
-# TAB 1: ULTRA-COMPACT TRADE SIGNALS
+# TAB 1: ACTIVE SIGNALS
 # ------------------------------------------------------------------
 with tab_signals:
     filter_index = st.selectbox("Filter:", ["ALL", "NIFTY 50", "BANK NIFTY", "SENSEX"], label_visibility="collapsed")
@@ -222,55 +216,34 @@ with tab_signals:
         card_border = "card-call-border" if is_call else "card-put-border"
         badge_pill = "badge-pill-call" if is_call else "badge-pill-put"
 
-        # Calculate percentages for the CSS progress bar
         total_range = risk + reward
         risk_pct = (risk / total_range) * 100
         reward_pct = (reward / total_range) * 100
 
-        render_html(f"""
-        <div class="compact-trade-card {card_border}">
-            <div class="card-header-flex">
-                <div>
-                    <span class="{badge_pill}">{t['type']}</span>
-                    <span style="font-size: 11px; font-weight: 700; color: #64748B; margin-left: 6px;">RR 1:{rr:.1f}</span>
-                </div>
-                <div style="font-size: 10px; font-weight: 700; color: #475569;">Lot Size: {t['lot_size']}</div>
-            </div>
-            
-            <div class="strike-title">{t['symbol']}</div>
-            <div style="font-size: 11px; color: #475569; margin-top: 2px;">💡 {t['reason']}</div>
-            
-            <div class="metrics-grid">
-                <div>
-                    <div class="m-label">BUY ENTRY</div>
-                    <div class="m-val">₹{t['entry']:.0f}</div>
-                </div>
-                <div>
-                    <div class="m-label">STOP LOSS</div>
-                    <div class="m-val">₹{t['sl']:.0f}</div>
-                    <div class="m-sub-down">-₹{risk:.0f}</div>
-                </div>
-                <div>
-                    <div class="m-label">TARGET</div>
-                    <div class="m-val">₹{t['target']:.0f}</div>
-                    <div class="m-sub-up">+₹{reward:.0f}</div>
-                </div>
-                <div>
-                    <div class="m-label">LOT RISK</div>
-                    <div class="m-val">₹{risk * t['lot_size']:,.0f}</div>
-                    <div class="m-sub-up">T: ₹{reward * t['lot_size']:,.0f}</div>
-                </div>
-            </div>
-
-            <div class="rr-bar-container" title="Risk: {risk_pct:.0f}% | Reward: {reward_pct:.0f}%">
-                <div class="rr-risk" style="width: {risk_pct}%;"></div>
-                <div class="rr-reward" style="width: {reward_pct}%;"></div>
-            </div>
-        </div>
-        """)
+        # Zero indentation in HTML string prevents markdown conversion
+        card_html = f"""<div class="compact-trade-card {card_border}">
+<div class="card-header-flex">
+<div><span class="{badge_pill}">{t['type']}</span><span style="font-size: 11px; font-weight: 700; color: #64748B; margin-left: 6px;">RR 1:{rr:.1f}</span></div>
+<div style="font-size: 10px; font-weight: 700; color: #475569;">Lot Size: {t['lot_size']}</div>
+</div>
+<div class="strike-title">{t['symbol']}</div>
+<div style="font-size: 11px; color: #475569; margin-top: 2px;">💡 {t['reason']}</div>
+<div class="metrics-grid">
+<div><div class="m-label">BUY ENTRY</div><div class="m-val">₹{t['entry']:.0f}</div></div>
+<div><div class="m-label">STOP LOSS</div><div class="m-val">₹{t['sl']:.0f}</div><div class="m-sub-down">-₹{risk:.0f}</div></div>
+<div><div class="m-label">TARGET</div><div class="m-val">₹{t['target']:.0f}</div><div class="m-sub-up">+₹{reward:.0f}</div></div>
+<div><div class="m-label">LOT RISK</div><div class="m-val">₹{risk * t['lot_size']:,.0f}</div><div class="m-sub-up">T: ₹{reward * t['lot_size']:,.0f}</div></div>
+</div>
+<div class="rr-bar-container">
+<div class="rr-risk" style="width: {risk_pct}%;"></div>
+<div class="rr-reward" style="width: {reward_pct}%;"></div>
+</div>
+</div>"""
+        
+        render_clean_html(card_html)
 
 # ------------------------------------------------------------------
-# TAB 2: MARKET BREADTH & CHART
+# TAB 2: MARKET BREADTH
 # ------------------------------------------------------------------
 with tab_breadth:
     col1, col2 = st.columns(2)
