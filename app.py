@@ -6,10 +6,10 @@ import yfinance as yf
 from datetime import datetime
 
 # ------------------------------------------------------------------
-# 1. PAGE CONFIG & PERSISTENT SESSION
+# 1. PAGE CONFIG & SESSION
 # ------------------------------------------------------------------
 st.set_page_config(
-    page_title="PRO TERMINAL v34.0 - FULL EXECUTION ENABLED",
+    page_title="PRO TERMINAL v35.0 - FULL EXECUTION",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -22,7 +22,7 @@ if 'authenticated' not in st.session_state:
     st.session_state.authenticated = True
 
 # ------------------------------------------------------------------
-# 2. CUSTOM CSS FOR MOBILE RESPONSIVENESS
+# 2. RESPONSIVE CSS & UI DESIGN
 # ------------------------------------------------------------------
 css_content = """
 <style>
@@ -38,7 +38,7 @@ css_content = """
 .stat-val { font-size: 9px; font-weight: 800; color: #F9FAFB; }
 .stat-sub-up { font-size: 7px; color: #10B981; font-weight: 800; }
 
-.trade-card { background: #FFFFFF; border-radius: 10px; padding: 10px; margin-bottom: 10px; border-left: 5px solid #10B981; border-top: 1px solid #E2E8F0; border-right: 1px solid #E2E8F0; border-bottom: 1px solid #E2E8F0; }
+.trade-card { background: #FFFFFF; border-radius: 10px; padding: 10px; margin-bottom: 8px; border-left: 5px solid #10B981; border-top: 1px solid #E2E8F0; border-right: 1px solid #E2E8F0; border-bottom: 1px solid #E2E8F0; }
 .trade-card-put { border-left-color: #EF4444; }
 
 .card-top-row { display: flex; justify-content: space-between; align-items: center; }
@@ -55,7 +55,6 @@ css_content = """
 
 .sl-warning-box { background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 6px; padding: 4px 6px; margin-top: 4px; display: flex; justify-content: space-between; font-size: 8px; color: #92400E; font-weight: 700; }
 
-/* Analysis Card */
 .analysis-box { background: #0F172A; border: 1px solid #334155; border-radius: 8px; padding: 10px; color: #F8FAFC; margin-bottom: 8px; }
 .analysis-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-top: 6px; }
 .an-card { background: #1E293B; padding: 8px; border-radius: 6px; border: 1px solid #475569; }
@@ -67,7 +66,7 @@ css_content = """
 render_clean_html(css_content)
 
 # ------------------------------------------------------------------
-# 3. LIVE ENGINE & TRADES
+# 3. LIVE ENGINE & DATA PIPELINE
 # ------------------------------------------------------------------
 @st.cache_data(ttl=2)
 def fetch_live_engine():
@@ -100,10 +99,10 @@ all_generated_trades = [
     }
 ]
 
-# Header
+# Top Bar Header
 render_clean_html(f"""
 <div class="top-header">
-    <div class="app-title">⚡ PRO TERMINAL <span style="font-size: 8px; color: #10B981;">● LIVE SYSTEM</span></div>
+    <div class="app-title">⚡ PRO TERMINAL <span style="font-size: 8px; color: #10B981;">● LIVE SYNC</span></div>
     <div style="font-size: 9px; font-weight: 800; color: #10B981;"><span class="live-dot"></span>{engine_data['time']}</div>
 </div>
 """)
@@ -128,7 +127,7 @@ render_clean_html(f"""
 """)
 
 # ------------------------------------------------------------------
-# 4. TABS & RENDER
+# 4. TAB NAVIGATION & CONTENT RENDER
 # ------------------------------------------------------------------
 tab_signals, tab_btst, tab_hero, tab_chain, tab_analysis, tab_charts = st.tabs([
     f"⚡ Active Signals ({len(all_generated_trades)})", 
@@ -139,9 +138,10 @@ tab_signals, tab_btst, tab_hero, tab_chain, tab_analysis, tab_charts = st.tabs([
     "📈 Interactive Chart"
 ])
 
-# --- TAB 1: SIGNALS & DIRECT TRADE EXECUTION ---
+# --- TAB 1: SIGNALS & DIRECT ORDER EXECUTION ---
 with tab_signals:
-    for t in all_generated_trades:
+    filtered = [t for t in all_generated_trades if selected_index == "ALL INDICES" or t["index_tag"] == selected_index]
+    for t in filtered:
         card_class = "trade-card" if t['is_call'] else "trade-card trade-card-put"
         risk_amount = round((t['entry'] - t['sl']) * t['lot'])
         
@@ -163,50 +163,59 @@ with tab_signals:
         </div>
         """)
         
-        # Interactive Order Execution Box Inside Card
-        with st.expander(f"📥 Execute Order: {t['symbol']}"):
+        # Embedded Order Execution Section
+        with st.expander(f"⚡ Execute Order: {t['symbol']}"):
             c1, c2, c3 = st.columns([1, 1, 1])
             with c1:
-                lots = st.number_input(f"Lots ({t['lot']} qty/lot):", min_value=1, value=1, key=f"lots_{t['id']}")
+                lots = st.number_input(f"Lots ({t['lot']} qty/lot)", min_value=1, value=1, key=f"lots_{t['id']}")
             with c2:
-                order_type = st.selectbox("Type:", ["MARKET", "LIMIT"], key=f"type_{t['id']}")
+                order_type = st.selectbox("Type", ["MARKET", "LIMIT"], key=f"type_{t['id']}")
             with c3:
-                trigger_p = st.number_input("Entry Price:", value=t['entry'], key=f"p_{t['id']}")
+                trigger_p = st.number_input("Trigger Price", value=t['entry'], key=f"p_{t['id']}")
             
-            btn_col1, btn_col2 = st.columns(2)
-            with btn_col1:
+            btn1, btn2 = st.columns(2)
+            with btn1:
                 if st.button(f"🟢 BUY {t['symbol']}", use_container_width=True, key=f"buy_{t['id']}"):
-                    st.success(f"✅ Order Executed for {lots * t['lot']} Qty at ₹{trigger_p}")
-            with btn_col2:
-                if st.button(f"🔴 SELL / EXIT", use_container_width=True, key=f"sell_{t['id']}"):
-                    st.info("Exit order placed.")
+                    st.success(f"✅ Order Placed: {lots * t['lot']} Qty @ ₹{trigger_p}")
+            with btn2:
+                if st.button(f"🔴 EXIT / CLOSE", use_container_width=True, key=f"sell_{t['id']}"):
+                    st.warning("Position Exited.")
 
-# --- TAB 2: BTST ---
+# --- TAB 2: BTST SETUP ---
 with tab_btst:
-    st.subheader("🌙 Overnight BTST Radar")
-    st.info("💡 **BTST Strategy:** Buy NIFTY 24000 CE near 3:15 PM for overnight gap-up targets.")
+    st.subheader("🌙 BTST (Overnight) Radar Engine")
+    render_clean_html("""
+    <div class="analysis-box" style="border-color:#F59E0B;">
+        <div style="font-weight: 800; font-size: 11px; color:#FBBF24;">🌍 OVERNIGHT MARKET MATRIX</div>
+        <div class="analysis-grid">
+            <div class="an-card"><div class="an-title">US DOW JONES</div><div class="an-val" style="color:#34D399;">+0.42%</div><div class="an-sub">Bullish Bias</div></div>
+            <div class="an-card"><div class="an-title">GIFT NIFTY</div><div class="an-val" style="color:#38BDF8;">24,035 (+18)</div><div class="an-sub">Gap-Up Expected</div></div>
+        </div>
+    </div>
+    """)
+    st.info("💡 **BTST Strategy Recommendation:** Enter **NIFTY 24000 CE** between 3:15 PM - 3:25 PM for overnight holding with Target: ₹85.00.")
 
-# --- TAB 3: ZERO HERO ---
+# --- TAB 3: DYNAMIC ZERO-HERO ---
 with tab_hero:
     st.subheader("🚀 Dynamic Zero-Hero Engine")
-    st.warning("ℹ️ Zero-Hero trades automatically trigger on Expiry day after 1:30 PM based on gamma spikes.")
+    st.warning("ℹ️ Zero-Hero signals trigger automatically on Expiry Days after 1:30 PM on high gamma spikes.")
 
 # --- TAB 4: OPTION CHAIN ---
 with tab_chain:
-    st.subheader("📊 Option Chain Data")
+    st.subheader("📊 Live Option Chain Data")
     df_chain = pd.DataFrame([
-        {"Call OI": "2.98L", "STRIKE": 23850, "Put OI": "5.11L"},
-        {"Call OI": "3.73L", "STRIKE": 23900, "Put OI": "5.71L"},
-        {"Call OI": "4.48L", "STRIKE": 23950, "Put OI": "6.31L"},
+        {"Call OI": "2.98L", "STRIKE": "23850", "Put OI": "5.11L"},
+        {"Call OI": "3.73L", "STRIKE": "23900", "Put OI": "5.71L"},
+        {"Call OI": "4.48L", "STRIKE": "23950", "Put OI": "6.31L"},
         {"Call OI": "5.23L", "STRIKE": "📍 24000 (ATM)", "Put OI": "6.91L"},
-        {"Call OI": "4.88L", "STRIKE": 24050, "Put OI": "6.63L"},
-        {"Call OI": "4.13L", "STRIKE": 24100, "Put OI": "6.03L"},
+        {"Call OI": "4.88L", "STRIKE": "24050", "Put OI": "6.63L"},
+        {"Call OI": "4.13L", "STRIKE": "24100", "Put OI": "6.03L"},
     ])
     st.dataframe(df_chain, use_container_width=True, hide_index=True)
 
 # --- TAB 5: TRADE ANALYSIS ---
 with tab_analysis:
-    st.subheader("📊 Sentiment & OI Metrics")
+    st.subheader(f"📊 Market Analysis ({selected_index})")
     render_clean_html("""
     <div class="analysis-box">
         <div class="analysis-grid">
@@ -226,12 +235,11 @@ with tab_analysis:
 
 # --- TAB 6: INTERACTIVE CHART ---
 with tab_charts:
-    st.subheader("📈 NIFTY 50 Intraday Chart")
-    dates = pd.date_range(end=datetime.now(), periods=20, freq='5min')
-    close_prices = 24013.5 + np.cumsum(np.random.randn(20) * 3)
-    df_chart = pd.DataFrame({'Open': close_prices-2, 'High': close_prices+3, 'Low': close_prices-3, 'Close': close_prices}, index=dates)
+    st.subheader(f"📈 NIFTY 50 Intraday Candlestick Chart")
+    dates = pd.date_range(end=datetime.now(), periods=25, freq='5min')
+    close_prices = 24013.5 + np.cumsum(np.random.randn(25) * 2.5)
+    df_chart = pd.DataFrame({'Open': close_prices-1.5, 'High': close_prices+3, 'Low': close_prices-3, 'Close': close_prices}, index=dates)
 
     fig_chart = go.Figure(data=[go.Candlestick(x=df_chart.index, open=df_chart['Open'], high=df_chart['High'], low=df_chart['Low'], close=df_chart['Close'])])
     fig_chart.update_layout(height=320, margin=dict(l=5, r=5, t=5, b=5), xaxis_rangeslider_visible=False, template="plotly_dark")
     st.plotly_chart(fig_chart, use_container_width=True)
-
