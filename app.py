@@ -19,25 +19,6 @@ st.markdown("""
 .stApp { background-color: #F8FAFC; color: #0F172A; }
 .block-container { padding: 0.4rem 0.4rem !important; max-width: 100% !important; }
 
-/* Compact Grid for Tickers to save space */
-.ticker-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 5px;
-    margin-bottom: 8px;
-}
-.ticker-card {
-    background: #FFFFFF;
-    border: 1px solid #E2E8F0;
-    border-radius: 6px;
-    padding: 5px;
-    text-align: center;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
-}
-.ticker-title { font-size: 8px; color: #64748B; font-weight: 800; }
-.ticker-val { font-size: 10px; color: #0F172A; font-weight: 900; margin: 1px 0; }
-.ticker-chg { font-size: 8px; font-weight: 800; }
-
 .status-banner {
     padding: 5px 10px; border-radius: 5px; font-size: 10px;
     font-weight: 800; margin-bottom: 6px; display: flex;
@@ -106,21 +87,36 @@ market_data = get_real_market_data()
 index_options = ["ALL INDICES"] + list(tickers.keys())
 selected_index = st.selectbox("🎯 Select Active Index", index_options, index=0)
 
-# Compact Grid View for Tickers (No vertical space waste)
-ticker_html = '<div class="ticker-grid">'
-for name, info in market_data.items():
-    color = "#16A34A" if info['chg'] >= 0 else "#DC2626"
-    ticker_html += f"""
-    <div class="ticker-card">
-        <div class="ticker-title">{name}</div>
-        <div class="ticker-val">{info['price']}</div>
-        <div class="ticker-chg" style="color: {color};">{info['chg']}%</div>
-    </div>
-    """
-ticker_html += '</div>'
-st.markdown(ticker_html, unsafe_allow_html=True)
+# Native Grid Layout using Streamlit Columns to completely avoid string printing bugs
+row1_cols = st.columns(3)
+items = list(market_data.items())
 
-# Advance / Decline & PCR Bar Restored
+for i in range(3):
+    name, info = items[i]
+    color = "#16A34A" if info['chg'] >= 0 else "#DC2626"
+    with row1_cols[i]:
+        st.markdown(f"""
+        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 6px; padding: 4px; text-align: center; margin-bottom: 4px;">
+            <div style="font-size: 8px; color: #64748B; font-weight: 800;">{name}</div>
+            <div style="font-size: 10px; color: #0F172A; font-weight: 900;">{info['price']}</div>
+            <div style="font-size: 8px; font-weight: 800; color: {color};">{info['chg']}%</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+row2_cols = st.columns(3)
+for i in range(3, 6):
+    name, info = items[i]
+    color = "#16A34A" if info['chg'] >= 0 else "#DC2626"
+    with row2_cols[i-3]:
+        st.markdown(f"""
+        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 6px; padding: 4px; text-align: center; margin-bottom: 6px;">
+            <div style="font-size: 8px; color: #64748B; font-weight: 800;">{name}</div>
+            <div style="font-size: 10px; color: #0F172A; font-weight: 900;">{info['price']}</div>
+            <div style="font-size: 8px; font-weight: 800; color: {color};">{info['chg']}%</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+# Advance / Decline & PCR Bar
 st.markdown("""
 <div style="display: flex; gap: 6px; margin-bottom: 8px;">
     <div style="flex: 1; background: #E0F2FE; padding: 5px; border-radius: 5px; text-align: center; font-size: 10px; font-weight: 800; color: #0369A1;">
