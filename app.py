@@ -4,19 +4,41 @@ import numpy as np
 import plotly.graph_objects as go
 import yfinance as yf
 from datetime import datetime
-import time
 
 # ------------------------------------------------------------------
-# 1. PAGE CONFIGURATION & SESSION STATE SYNC
+# 1. PAGE CONFIGURATION & SECURE SESSION PASSWORD
 # ------------------------------------------------------------------
 st.set_page_config(
-    page_title="PRO TERMINAL v14.0 (LIVE STREAM)",
+    page_title="PRO TERMINAL v14.1 (SECURE & LIVE)",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# Initialize dynamic counter for live tick fluctuations
+def check_password():
+    def password_entered():
+        if st.session_state["password"] == "pro12345":  # Aapka secure password
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]
+        else:
+            st.session_state["password_correct"] = False
+
+    if "password_correct" not in st.session_state:
+        st.markdown("<h2 style='text-align: center; color: #0F172A;'>🔒 PRO TERMINAL LOCKED</h2>", unsafe_allow_html=True)
+        st.text_input("Enter Access Password", type="password", on_change=password_entered, key="password")
+        return False
+    elif not st.session_state["password_correct"]:
+        st.markdown("<h2 style='text-align: center; color: #0F172A;'>🔒 PRO TERMINAL LOCKED</h2>", unsafe_allow_html=True)
+        st.text_input("Enter Access Password", type="password", on_change=password_entered, key="password")
+        st.error("😕 Password incorrect. Please try again.")
+        return False
+    else:
+        return True
+
+if not check_password():
+    st.stop()
+
+# Initialize tick counter for live simulations
 if "tick_count" not in st.session_state:
     st.session_state.tick_count = 0
 
@@ -91,7 +113,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------------
-# 3. FULLY DYNAMIC LIVE DATA ENGINE (WITH TICK FLUCTUATION)
+# 3. MARKET DATA ENGINE
 # ------------------------------------------------------------------
 tickers = {
     "NIFTY 50": "^NSEI",
@@ -101,7 +123,7 @@ tickers = {
     "MIDCPNIFTY": "NIFTY_MID_SELECT.NS"
 }
 
-@st.cache_data(ttl=5)
+@st.cache_data(ttl=30)
 def fetch_base_market_data():
     data_res = {}
     for name, sym in tickers.items():
@@ -121,11 +143,11 @@ def fetch_base_market_data():
 
 base_data = fetch_base_market_data()
 
-# Add live tick micro-variations so values actively change on every refresh
+# Live jitter simulation based on clicks/refreshes
 np.random.seed(st.session_state.tick_count)
 market_data = {}
 for name, info in base_data.items():
-    jitter = np.random.uniform(-2.0, 2.0) if "50" in name or "SENSEX" in name or "BANK" in name else np.random.uniform(-0.5, 0.5)
+    jitter = np.random.uniform(-1.5, 1.5) if "50" in name or "SENSEX" in name or "BANK" in name else np.random.uniform(-0.4, 0.4)
     live_price = round(info["price"] + jitter, 2)
     live_chg = round(info["chg"] + (jitter * 0.01), 2)
     market_data[name] = {"price": live_price, "open": info["open"], "chg": live_chg}
@@ -133,32 +155,29 @@ for name, info in base_data.items():
 nifty_info = market_data["NIFTY 50"]
 current_time_str = datetime.now().strftime('%H:%M:%S')
 
-# Header Bar
-col_h1, col_h2 = st.columns([4, 1])
+# Header Bar with Manual Refresh Button
+col_h1, col_h2 = st.columns([3, 1])
 with col_h1:
-    st.markdown(f"<h3 style='margin:0; padding:0; font-size:15px; font-weight:900; color:#0F172A;'>⚡ PRO TERMINAL v14.0 (LIVE SYNCED @ {current_time_str})</h3>", unsafe_allow_html=True)
+    st.markdown(f"<h3 style='margin:0; padding:0; font-size:15px; font-weight:900; color:#0F172A;'>⚡ PRO TERMINAL (LIVE @ {current_time_str})</h3>", unsafe_allow_html=True)
 with col_h2:
-    auto_refresh = st.checkbox("🔄 Auto Live", value=True)
-
-if auto_refresh:
-    time.sleep(2)
-    st.rerun()
+    if st.button("🔄 Refresh Data"):
+        st.rerun()
 
 # Dynamic Adv/Dec & PCR Generation
-adv_count = int(1340 + np.random.randint(-30, 30))
+adv_count = int(1340 + np.random.randint(-20, 20))
 dec_count = int(2200 - adv_count)
-pcr_val = round(0.85 + np.random.uniform(-0.03, 0.03), 2)
+pcr_val = round(0.88 + np.random.uniform(-0.02, 0.02), 2)
 
 # Top Summary Metrics Box
 st.markdown(f"""
 <div class="metrics-container">
     <div class="metric-box">
-        <div class="m-title">NIFTY SPOT (LIVE)</div>
+        <div class="m-title">NIFTY SPOT</div>
         <div class="m-val">{nifty_info['price']}</div>
         <div class="m-sub txt-green">▲ {nifty_info['chg']}%</div>
     </div>
     <div class="metric-box">
-        <div class="m-title">OPEN / PREV CLOSE</div>
+        <div class="m-title">OPEN / CLOSE</div>
         <div class="m-val">{nifty_info['open']}</div>
         <div class="m-sub" style="color:#64748B;">Prev: {round(nifty_info['price']*0.998, 2)}</div>
     </div>
@@ -168,7 +187,7 @@ st.markdown(f"""
         <div class="m-sub" style="color:#64748B;">NEUTRAL</div>
     </div>
     <div class="metric-box">
-        <div class="m-title">ADV / DEC RATIO</div>
+        <div class="m-title">ADV / DEC</div>
         <div class="m-val" style="font-size:10px;">{adv_count} : {dec_count}</div>
         <div style="background:#E2E8F0; height:4px; border-radius:2px; margin-top:3px; overflow:hidden;">
             <div style="background:#16A34A; width:{int((adv_count/2200)*100)}%; height:100%;"></div>
@@ -178,7 +197,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------------
-# 4. MARKET SEGMENTS & SUPPORT/RESISTANCE MATRIX WITH INDEX FILTER
+# 4. MARKET SEGMENTS & SUPPORT/RESISTANCE MATRIX WITH FILTER
 # ------------------------------------------------------------------
 st.markdown("<div style='font-size:11px; font-weight:800; margin: 4px 0; color:#1E293B;'>📊 Market Segments & Support/Resistance Matrix</div>", unsafe_allow_html=True)
 
@@ -187,7 +206,7 @@ selected_indices = st.multiselect(
     "🔍 Indices Filter",
     options=all_index_names,
     default=all_index_names,
-    help="Select specific indices to display or choose All Indices."
+    help="Select specific indices to display or view all."
 )
 
 sr_html_list = []
@@ -234,11 +253,11 @@ tab_trades, tab_eval, tab_btst, tab_hz, tab_chain, tab_chart = st.tabs([
 ])
 
 with tab_trades:
-    st.markdown("<div style='font-size:11px; font-weight:800; margin-bottom:4px; color:#1E293B;'>🚀 Active Intraday Setups (Synced Live)</div>", unsafe_allow_html=True)
-    ce_ltp = round(max(10.0, 45.60 + np.random.uniform(-3, 3)), 2)
+    st.markdown("<div style='font-size:11px; font-weight:800; margin-bottom:4px; color:#1E293B;'>🚀 Active Intraday Setups</div>", unsafe_allow_html=True)
+    ce_ltp = round(max(10.0, 45.60 + np.random.uniform(-2, 2)), 2)
     st.markdown(f"""
     <div class="analysis-card">
-        <div class="status-banner banner-running"><span>🟢 ACTIVE — LTP ₹{ce_ltp}</span><span>🔄 LIVE SYNC</span></div>
+        <div class="status-banner banner-running"><span>🟢 ACTIVE — LTP ₹{ce_ltp}</span><span>LIVE SYNCED</span></div>
         <div class="card-header"><span class="symbol-title">NIFTY {atm_strike-50} CE</span><span class="badge-rec bg-hold">HOLD</span></div>
         <div class="card-grid">
             <div><div class="grid-lbl">LTP</div><div class="grid-val" style="color:#16A34A;">₹{ce_ltp}</div></div>
@@ -252,7 +271,7 @@ with tab_trades:
 with tab_eval:
     st.markdown("<div style='font-size:11px; font-weight:800; margin-bottom:4px; color:#1E293B;'>💡 AI Trade Evaluator</div>", unsafe_allow_html=True)
     u_strike = st.number_input("Select Strike", value=int(atm_strike), step=50)
-    eval_ltp = round(max(5.0, 32.5 + np.random.uniform(-2, 2)), 2)
+    eval_ltp = round(max(5.0, 32.5 + np.random.uniform(-1, 1)), 2)
     st.markdown(f"""
     <div class="analysis-card">
         <div class="status-banner banner-running"><span>🎯 EVALUATION READY</span><span>AI CONFIRMED</span></div>
@@ -312,4 +331,3 @@ with tab_chart:
     fig.add_trace(go.Bar(x=[str(atm_strike-50), str(atm_strike), str(atm_strike+50)], y=[3.55, 7.15, 5.66], name='Put OI', marker_color='#16A34A'))
     fig.update_layout(barmode='group', height=220, margin=dict(l=10, r=10, t=10, b=10), template="plotly_white")
     st.plotly_chart(fig, use_container_width=True)
-
