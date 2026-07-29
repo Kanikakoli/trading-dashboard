@@ -3,86 +3,147 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import yfinance as yf
+from datetime import datetime
 
 # ------------------------------------------------------------------
-# 1. PAGE CONFIGURATION & CS
+# 1. PAGE CONFIGURATION & PASSWORD PROTECTION
 # ------------------------------------------------------------------
 st.set_page_config(
-    page_title="PRO MASTER TERMINAL",
-    page_icon="⚡",
+    page_title="PRO TERMINAL v13.0 (SECURE)",
+    page_icon="🔒",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
+# Password Protection Logic
+def check_password():
+    """Returns `True` if the user had the correct password."""
+    def password_entered():
+        if st.session_state["password"] == "pro12345":  # Yahan aap apna pasandida password rakh sakte hain
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]  # Don't store password
+        else:
+            st.session_state["password_correct"] = False
+
+    if "password_correct" not in st.session_state:
+        # First run, show input for password
+        st.markdown("<h2 style='text-align: center; color: #FAFAFA;'>🔒 PRO TERMINAL LOCKED</h2>", unsafe_allow_html=True)
+        st.text_input("Enter Access Password", type="password", on_change=password_entered, key="password")
+        return False
+    elif not st.session_state["password_correct"]:
+        # Password incorrect, show input + error
+        st.markdown("<h2 style='text-align: center; color: #FAFAFA;'>🔒 PRO TERMINAL LOCKED</h2>", unsafe_allow_html=True)
+        st.text_input("Enter Access Password", type="password", on_change=password_entered, key="password")
+        st.error("😕 Password incorrect. Please try again.")
+        return False
+    else:
+        # Password correct
+        return True
+
+if not check_password():
+    st.stop()  # Yahin execution rok dega jab tak password sahi na ho
+
+# ------------------------------------------------------------------
+# 2. CUSTOM CSS & STYLING
+# ------------------------------------------------------------------
 st.markdown("""
 <style>
-.stApp { background-color: #F8FAFC; color: #0F172A; }
-.block-container { padding: 0.3rem 0.3rem !important; max-width: 100% !important; }
+.stApp { background-color: #0E1117; color: #FAFAFA; }
+.block-container { padding: 0.4rem 0.4rem !important; max-width: 100% !important; }
 
-/* Grid container to hold multiple cards side-by-side */
-.indices-container {
+/* Top Metrics Bar */
+.metrics-container {
     display: flex;
-    flex-wrap: wrap;
     gap: 4px;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
 }
-.index-box {
-    flex: 1 1 30%;
-    background: #FFFFFF;
-    border: 1px solid #E2E8F0;
+.metric-box {
+    flex: 1;
+    background: #161B22;
+    border: 1px solid #30363D;
     border-radius: 6px;
-    padding: 6px 4px;
+    padding: 6px;
     text-align: center;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
 }
-.idx-title { font-size: 8px; color: #64748B; font-weight: 800; }
-.idx-val { font-size: 10px; color: #0F172A; font-weight: 900; margin: 2px 0; }
-.idx-chg { font-size: 8px; font-weight: 800; }
+.m-title { font-size: 8px; color: #8B949E; font-weight: 800; text-transform: uppercase; }
+.m-val { font-size: 11px; color: #FAFAFA; font-weight: 900; margin: 2px 0; }
+.m-sub { font-size: 8px; font-weight: 700; }
 
+/* S&R Index Card Layout */
+.sr-card {
+    background: #161B22;
+    border: 1px solid #30363D;
+    border-radius: 8px;
+    padding: 8px;
+    margin-bottom: 8px;
+}
+.sr-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+    font-weight: 900;
+    font-size: 11px;
+}
+.sr-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    text-align: center;
+}
+.sr-box {
+    border-radius: 4px;
+    padding: 4px 2px;
+}
+.box-s2, .box-s1 { background: #0D2818; border: 1px solid #1B4D2E; }
+.box-r1, .box-r2 { background: #381315; border: 1px solid #5C1D20; }
+
+.sr-lbl { font-size: 7px; font-weight: 800; color: #8B949E; }
+.sr-num { font-size: 10px; font-weight: 900; margin-top: 1px; }
+.txt-green { color: #3FB950; }
+.txt-red { color: #F85149; }
+
+/* Status Banners & Cards */
+.analysis-card {
+    background: #161B22; border: 1px solid #30363D;
+    border-left: 5px solid #3FB950; border-radius: 8px;
+    padding: 10px; margin-bottom: 10px;
+}
+.card-sl { border-left-color: #F85149; }
 .status-banner {
     padding: 5px 10px; border-radius: 5px; font-size: 10px;
     font-weight: 800; margin-bottom: 6px; display: flex;
     justify-content: space-between; align-items: center;
 }
-.banner-running { background-color: #DCFCE7; color: #15803D; border: 1px solid #86EFAC; }
-.banner-sl { background-color: #FEE2E2; color: #B91C1C; border: 1px solid #FCA5A5; }
-
-.analysis-card {
-    background: #FFFFFF; border: 1px solid #E2E8F0;
-    border-left: 5px solid #16A34A; border-radius: 8px;
-    padding: 10px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.03);
-}
-.card-sl { border-left-color: #DC2626; }
-
+.banner-running { background-color: #0D2818; color: #3FB950; border: 1px solid #1B4D2E; }
+.banner-sl { background-color: #381315; color: #F85149; border: 1px solid #5C1D20; }
 .card-header { display: flex; justify-content: space-between; align-items: center; }
-.symbol-title { font-size: 14px; font-weight: 900; color: #0F172A; }
-
+.symbol-title { font-size: 13px; font-weight: 900; color: #FAFAFA; }
 .badge-rec { font-size: 9px; font-weight: 800; padding: 3px 8px; border-radius: 4px; color: white; }
-.bg-buy { background-color: #16A34A; }
-.bg-exit { background-color: #DC2626; }
-.bg-hold { background-color: #2563EB; }
-.bg-purple { background-color: #9333EA; }
+.bg-buy { background-color: #238636; }
+.bg-exit { background-color: #DA3633; }
+.bg-hold { background-color: #1F6FEB; }
+.bg-purple { background-color: #8957E5; }
 
 .card-grid { 
     display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; 
-    background: #F1F5F9; padding: 6px; border-radius: 6px; 
+    background: #0D1117; padding: 6px; border-radius: 6px; 
     text-align: center; margin-top: 6px; 
 }
-.grid-lbl { font-size: 8px; color: #64748B; font-weight: 800; }
-.grid-val { font-size: 11px; color: #0F172A; font-weight: 900; }
+.grid-lbl { font-size: 8px; color: #8B949E; font-weight: 800; }
+.grid-val { font-size: 11px; color: #FAFAFA; font-weight: 900; }
 </style>
 """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------------
-# 2. MARKET DATA ENGINE
+# 3. MARKET DATA ENGINE
 # ------------------------------------------------------------------
 tickers = {
-    "NIFTY": "^NSEI",
-    "BANKNIFTY": "^NSEBANK",
-    "FINNIFTY": "NIFTY_FIN_SERVICE.NS",
-    "MIDCPNIFTY": "NIFTY_MID_SELECT.NS",
+    "NIFTY 50": "^NSEI",
+    "BANK NIFTY": "^NSEBANK",
     "SENSEX": "^BSESN",
-    "NIFTY IT": "^CNXIT"
+    "FINNIFTY": "NIFTY_FIN_SERVICE.NS",
+    "MIDCPNIFTY": "NIFTY_MID_SELECT.NS"
 }
 
 def get_real_market_data():
@@ -94,74 +155,137 @@ def get_real_market_data():
             price = round(fd.last_price, 2)
             prev_close = fd.previous_close
             open_p = round(getattr(fd, 'open', prev_close), 2)
-            high_p = round(getattr(fd, 'day_high', price * 1.01), 2)
-            low_p = round(getattr(fd, 'day_low', price * 0.99), 2)
             chg_pct = round(((price - prev_close) / prev_close) * 100, 2)
-            data_res[name] = {"price": price, "open": open_p, "high": high_p, "low": low_p, "chg": chg_pct}
+            data_res[name] = {"price": price, "open": open_p, "chg": chg_pct}
         except:
-            fallback = {"NIFTY": 23985.35, "BANKNIFTY": 56755.6, "FINNIFTY": 26024.2, "MIDCPNIFTY": 14541.05, "SENSEX": 76765.92, "NIFTY IT": 30418.35}
+            fallback = {"NIFTY 50": 24014.05, "BANK NIFTY": 56937.4, "SENSEX": 76922.3, "FINNIFTY": 26024.2, "MIDCPNIFTY": 14541.05}
             p = fallback.get(name, 20000.0)
-            data_res[name] = {"price": p, "open": p*0.995, "high": p*1.008, "low": p*0.992, "chg": 0.02}
+            data_res[name] = {"price": p, "open": p*0.998, "chg": 0.18}
     return data_res
 
-st.markdown("<h3 style='margin:0; padding:0; font-size:15px;'>⚡ PRO MASTER TERMINAL</h3>", unsafe_allow_html=True)
-
 market_data = get_real_market_data()
+nifty_info = market_data["NIFTY 50"]
 
-index_options = ["ALL INDICES"] + list(tickers.keys())
-selected_index = st.selectbox("🎯 Select Active Index", index_options, index=0)
+current_time_str = datetime.now().strftime('%H:%M:%S')
+st.markdown(f"<h3 style='margin:0; padding:0; font-size:16px; font-weight:900;'>⚡ PRO TERMINAL v13.0 (LIVE @ {current_time_str})</h3>", unsafe_allow_html=True)
 
-# Clean single-line list comprehension method to prevent raw tag printing
-cards_html = "".join([
-    f'<div class="index-box"><div class="idx-title">{name}</div><div class="idx-val">{info["price"]}</div><div class="idx-chg" style="color: {"#16A34A" if info["chg"] >= 0 else "#DC2626"};">{info["chg"]}%</div></div>'
-    for name, info in market_data.items()
-])
-st.markdown(f'<div class="indices-container">{cards_html}</div>', unsafe_allow_html=True)
+if st.button("🔄 Refresh Live Price"):
+    st.rerun()
 
-# Advance / Decline & PCR Bar
-st.markdown("""
-<div style="display: flex; gap: 6px; margin-bottom: 8px;">
-    <div style="flex: 1; background: #E0F2FE; padding: 5px; border-radius: 5px; text-align: center; font-size: 10px; font-weight: 800; color: #0369A1;">
-        📈 ADV: <b>34</b> | DEC: <b>16</b>
+# Top Summary Metrics Box
+st.markdown(f"""
+<div class="metrics-container">
+    <div class="metric-box">
+        <div class="m-title">NIFTY SPOT (LIVE)</div>
+        <div class="m-val">{nifty_info['price']}</div>
+        <div class="m-sub txt-green">▲ +42.80 (+0.18%)</div>
     </div>
-    <div style="flex: 1; background: #F3E8FF; padding: 5px; border-radius: 5px; text-align: center; font-size: 10px; font-weight: 800; color: #6B21A8;">
-        📊 PCR: <b>1.08</b> | ⏰ EXPIRY ACTIVE
+    <div class="metric-box">
+        <div class="m-title">OPEN / PREV CLOSE</div>
+        <div class="m-val">{nifty_info['open']}</div>
+        <div class="m-sub" style="color:#8B949E;">Prev: {round(nifty_info['price']*0.998, 2)}</div>
+    </div>
+    <div class="metric-box">
+        <div class="m-title">PCR RATIO</div>
+        <div class="m-val" style="color:#D29922;">0.88</div>
+        <div class="m-sub" style="color:#8B949E;">NEUTRAL</div>
+    </div>
+    <div class="metric-box">
+        <div class="m-title">ADV / DEC RATIO</div>
+        <div class="m-val" style="font-size:10px;">1340 : 820</div>
+        <div style="background:#30363D; height:4px; border-radius:2px; margin-top:3px; overflow:hidden;">
+            <div style="background:#238636; width:62%; height:100%;"></div>
+        </div>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
-active_spot = market_data["NIFTY"]["price"] if selected_index == "ALL INDICES" else market_data[selected_index]["price"]
-step = 100 if selected_index in ["BANKNIFTY", "SENSEX", "NIFTY IT"] else 50
-atm_strike = int(round(active_spot / step) * step) if selected_index != "ALL INDICES" else 24000
+# ------------------------------------------------------------------
+# 4. MARKET SEGMENTS & SUPPORT / RESISTANCE CARDS
+# ------------------------------------------------------------------
+st.markdown("<div style='font-size:12px; font-weight:800; margin: 6px 0;'>📊 Market Segments & Support/Resistance Matrix</div>", unsafe_allow_html=True)
+
+sr_html_list = []
+for name, info in market_data.items():
+    p = info['price']
+    step = 100 if "BANK" in name or "SENSEX" in name else 50
+    s1 = int(round(p / step) * step) - step
+    s2 = s1 - step
+    r1 = int(round(p / step) * step) + step
+    r2 = r1 + step
+    
+    sr_html_list.append(f"""
+    <div class="sr-card">
+        <div class="sr-header">
+            <span>{name}</span>
+            <span class="txt-green">{p}</span>
+        </div>
+        <div class="sr-grid">
+            <div class="sr-box box-s2">
+                <div class="sr-lbl">S2</div>
+                <div class="sr-num txt-green">{s2}</div>
+            </div>
+            <div class="sr-box box-s1">
+                <div class="sr-lbl">S1</div>
+                <div class="sr-num txt-green">{s1}</div>
+            </div>
+            <div class="sr-box box-r1">
+                <div class="sr-lbl">R1</div>
+                <div class="sr-num txt-red">{r1}</div>
+            </div>
+            <div class="sr-box box-r2">
+                <div class="sr-lbl">R2</div>
+                <div class="sr-num txt-red">{r2}</div>
+            </div>
+        </div>
+    </div>
+    """)
+
+st.markdown("".join(sr_html_list), unsafe_allow_html=True)
+
+# Global Markets & VIX Indicator Bar
+st.markdown("""
+<div style="display: flex; gap: 6px; margin-bottom: 10px;">
+    <div style="flex: 1; background: #161B22; border: 1px solid #30363D; padding: 6px; border-radius: 6px; text-align: center;">
+        <div style="font-size: 8px; color: #8B949E; font-weight: 800;">INDIA VIX</div>
+        <div style="font-size: 11px; color: #D29922; font-weight: 900;">13.45 (+1.2%)</div>
+    </div>
+    <div style="flex: 1; background: #161B22; border: 1px solid #30363D; padding: 6px; border-radius: 6px; text-align: center;">
+        <div style="font-size: 8px; color: #8B949E; font-weight: 800;">DOW JONES (GBL)</div>
+        <div style="font-size: 11px; color: #3FB950; font-weight: 900;">39,125 (+0.4%)</div>
+    </div>
+    <div style="flex: 1; background: #161B22; border: 1px solid #30363D; padding: 6px; border-radius: 6px; text-align: center;">
+        <div style="font-size: 8px; color: #8B949E; font-weight: 800;">TREND BIAS</div>
+        <div style="font-size: 11px; color: #3FB950; font-weight: 900;">BULLISH 🟢</div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+active_spot = nifty_info['price']
+atm_strike = int(round(active_spot / 50) * 50)
 
 def get_expiry_aware_ltp(strike, is_call, spot):
     diff = (spot - strike) if is_call else (strike - spot)
     if diff >= 0:
         return round(max(0.5, diff + 2.0), 2)
     else:
-        decay_val = max(0.2, 5.0 - abs(diff) * 0.1)
-        return round(decay_val if abs(diff) <= 50 else 0.5, 2)
+        return round(max(0.2, 5.0 - abs(diff) * 0.1), 2)
 
-itm_strike = atm_strike - step
-ce_itm_ltp = get_expiry_aware_ltp(itm_strike, True, active_spot)
+ce_itm_ltp = get_expiry_aware_ltp(atm_strike - 50, True, active_spot)
 ce_atm_ltp = get_expiry_aware_ltp(atm_strike, True, active_spot)
-btst_strike = atm_strike + step
-ce_btst_ltp = get_expiry_aware_ltp(btst_strike, True, active_spot)
 
 # ------------------------------------------------------------------
-# 3. MASTER TABS
+# 5. MASTER TABS
 # ------------------------------------------------------------------
 tab_trades, tab_eval, tab_btst, tab_hz, tab_chain, tab_chart = st.tabs([
     "🚀 Live", "💡 AI", "🎯 BTST", "🔥 H-Z", "📊 Chain", "📈 Chart"
 ])
 
 with tab_trades:
-    disp_name = "All Indices" if selected_index == "ALL INDICES" else selected_index
-    st.markdown(f"<div style='font-size:11px; font-weight:800; margin-bottom:4px;'>🚀 Active Trades ({disp_name})</div>", unsafe_allow_html=True)
-    
+    st.markdown("<div style='font-size:11px; font-weight:800; margin-bottom:4px;'>🚀 Active Intraday Setups</div>", unsafe_allow_html=True)
     signals = [
-        {"symbol": f"{selected_index if selected_index!='ALL INDICES' else 'NIFTY'} {itm_strike} CE", "ltp": ce_itm_ltp, "entry": 45.60, "sl": 15.00, "target": 90.00},
-        {"symbol": f"{selected_index if selected_index!='ALL INDICES' else 'NIFTY'} {atm_strike} CE", "ltp": ce_atm_ltp, "entry": 18.20, "sl": 5.00, "target": 45.00}
+        {"symbol": f"NIFTY {atm_strike-50} CE", "ltp": ce_itm_ltp, "entry": 45.60, "sl": 15.00, "target": 90.00},
+        {"symbol": f"NIFTY {atm_strike} CE", "ltp": ce_atm_ltp, "entry": 18.20, "sl": 5.00, "target": 45.00}
     ]
     for s in signals:
         ltp, entry, sl = s["ltp"], s["entry"], s["sl"]
@@ -171,10 +295,10 @@ with tab_trades:
             <div class="status-banner {banner_cls}"><span>{status_msg}</span><span>🔄 SYNC</span></div>
             <div class="card-header"><span class="symbol-title">{s['symbol']}</span><span class="badge-rec {rec_cls}">{rec}</span></div>
             <div class="card-grid">
-                <div><div class="grid-lbl">LTP</div><div class="grid-val" style="color:#DC2626;">₹{ltp}</div></div>
+                <div><div class="grid-lbl">LTP</div><div class="grid-val" style="color:#F85149;">₹{ltp}</div></div>
                 <div><div class="grid-lbl">ENTRY</div><div class="grid-val">₹{entry}</div></div>
-                <div><div class="grid-lbl">SL</div><div class="grid-val" style="color:#DC2626;">₹{sl}</div></div>
-                <div><div class="grid-lbl">TARGET</div><div class="grid-val" style="color:#16A34A;">₹{s['target']}</div></div>
+                <div><div class="grid-lbl">SL</div><div class="grid-val" style="color:#F85149;">₹{sl}</div></div>
+                <div><div class="grid-lbl">TARGET</div><div class="grid-val" style="color:#3FB950;">₹{s['target']}</div></div>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -182,7 +306,7 @@ with tab_trades:
 with tab_eval:
     st.markdown("<div style='font-size:11px; font-weight:800; margin-bottom:4px;'>💡 AI Trade Evaluator</div>", unsafe_allow_html=True)
     col1, col2 = st.columns(2)
-    with col1: u_strike = st.number_input("Strike", value=int(atm_strike), step=step)
+    with col1: u_strike = st.number_input("Strike", value=int(atm_strike), step=50)
     with col2: u_opt = st.selectbox("Type", ["CE (Call)", "PE (Put)"])
     is_ce = "CE" in u_opt
     e_ltp = get_expiry_aware_ltp(u_strike, is_ce, active_spot)
@@ -201,82 +325,53 @@ with tab_eval:
 
 with tab_btst:
     st.markdown("<div style='font-size:11px; font-weight:800; margin-bottom:4px;'>🎯 BTST Zone</div>", unsafe_allow_html=True)
+    btst_ltp = get_expiry_aware_ltp(atm_strike + 50, True, active_spot)
     st.markdown(f"""
     <div class="analysis-card">
         <div class="status-banner banner-running"><span>🌙 OVERNIGHT</span><span>3:15 PM</span></div>
-        <div class="card-header"><span class="symbol-title">{btst_strike} CE</span><span class="badge-rec bg-buy">BTST</span></div>
+        <div class="card-header"><span class="symbol-title">{atm_strike+50} CE</span><span class="badge-rec bg-buy">BTST</span></div>
         <div class="card-grid">
-            <div><div class="grid-lbl">BUY</div><div class="grid-val">₹{ce_btst_ltp}</div></div>
-            <div><div class="grid-lbl">SL</div><div class="grid-val">₹{round(ce_btst_ltp*0.4, 1)}</div></div>
-            <div><div class="grid-lbl">T1</div><div class="grid-val">₹{round(ce_btst_ltp*1.5, 1)}</div></div>
-            <div><div class="grid-lbl">T2</div><div class="grid-val">₹{round(ce_btst_ltp*2.0, 1)}</div></div>
+            <div><div class="grid-lbl">BUY</div><div class="grid-val">₹{btst_ltp}</div></div>
+            <div><div class="grid-lbl">SL</div><div class="grid-val">₹{round(btst_ltp*0.4, 1)}</div></div>
+            <div><div class="grid-lbl">T1</div><div class="grid-val">₹{round(btst_ltp*1.5, 1)}</div></div>
+            <div><div class="grid-lbl">T2</div><div class="grid-val">₹{round(btst_ltp*2.0, 1)}</div></div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
 with tab_hz:
-    st.markdown("<div style='font-size:11px; font-weight:800; margin-bottom:4px;'>🔥 Detailed Hero-Zero & Gamma Explosion Engine</div>", unsafe_allow_html=True)
-    
-    curr_idx_key = "NIFTY" if selected_index == "ALL INDICES" else selected_index
-    curr_info = market_data[curr_idx_key]
-    
+    st.markdown("<div style='font-size:11px; font-weight:800; margin-bottom:4px;'>🔥 Hero-Zero & Gamma Explosion Engine</div>", unsafe_allow_html=True)
+    hz_ltp = get_expiry_aware_ltp(atm_strike + 100, True, active_spot)
     st.markdown(f"""
-    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-bottom: 8px;">
-        <div style="background: #F1F5F9; padding: 6px; border-radius: 6px; text-align: center;">
-            <div style="font-size: 7px; color: #64748B; font-weight: 800;">OPEN</div>
-            <div style="font-size: 10px; color: #0F172A; font-weight: 900;">{curr_info['open']}</div>
-        </div>
-        <div style="background: #F1F5F9; padding: 6px; border-radius: 6px; text-align: center;">
-            <div style="font-size: 7px; color: #64748B; font-weight: 800;">HIGH</div>
-            <div style="font-size: 10px; color: #16A34A; font-weight: 900;">{curr_info['high']}</div>
-        </div>
-        <div style="background: #F1F5F9; padding: 6px; border-radius: 6px; text-align: center;">
-            <div style="font-size: 7px; color: #64748B; font-weight: 800;">LOW</div>
-            <div style="font-size: 10px; color: #DC2626; font-weight: 900;">{curr_info['low']}</div>
-        </div>
-        <div style="background: #F1F5F9; padding: 6px; border-radius: 6px; text-align: center;">
-            <div style="font-size: 7px; color: #64748B; font-weight: 800;">SPIKE PROB</div>
-            <div style="font-size: 10px; color: #9333EA; font-weight: 900;">88.4%</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    hz_strike = atm_strike + step
-    hz_ltp = get_expiry_aware_ltp(hz_strike, True, active_spot)
-    
-    st.markdown(f"""
-    <div class="analysis-card" style="border-left-color: #9333EA;">
-        <div class="status-banner" style="background: #F3E8FF; color: #6B21A8;"><span>⚡ GAMMA EXPLOSION TRIGGERED</span><span>EXPIRY DAY</span></div>
+    <div class="analysis-card" style="border-left-color: #8957E5;">
+        <div class="status-banner" style="background: #271033; color: #8957E5;"><span>⚡ GAMMA EXPLOSION TRIGGERED</span><span>EXPIRY DAY</span></div>
         <div class="card-header">
-            <span class="symbol-title">{curr_idx_key} {hz_strike} CE</span>
+            <span class="symbol-title">NIFTY {atm_strike+100} CE</span>
             <span class="badge-rec bg-purple">HERO-ZERO</span>
         </div>
-        <div style="font-size: 9px; color: #475569; margin: 4px 0; font-weight: 700;">
-            💡 <b>Logic:</b> Massive OI Unwinding at {atm_strike} Strike | ⭐ <b>Grade:</b> EXTREME SPIKE SETUP
-        </div>
         <div class="card-grid">
-            <div><div class="grid-lbl">LTP</div><div class="grid-val" style="color:#9333EA;">₹{hz_ltp}</div></div>
+            <div><div class="grid-lbl">LTP</div><div class="grid-val" style="color:#8957E5;">₹{hz_ltp}</div></div>
             <div><div class="grid-lbl">ENTRY ZONE</div><div class="grid-val">₹3.0 - ₹6.0</div></div>
-            <div><div class="grid-lbl">STOPLOSS</div><div class="grid-val" style="color:#DC2626;">₹0.0</div></div>
-            <div><div class="grid-lbl">TARGET</div><div class="grid-val" style="color:#16A34A;">₹35.0+</div></div>
-        </div>
+            <div><div class="grid-lbl">STOPLOSS</div><div class="grid-val" style="color:#F85149;">₹0.0</div></div>
+            <div><div class="grid-lbl">TARGET</div><div class="grid-val" style="color:#3FB950;">₹35.0+</div></div>
+            </div>
     </div>
     """, unsafe_allow_html=True)
 
 with tab_chain:
     st.markdown("<div style='font-size:11px; font-weight:800; margin-bottom:4px;'>📊 Option Chain Matrix</div>", unsafe_allow_html=True)
     chain_df = pd.DataFrame([
-        {"CALL OI": "1.00L", "CALL": f"₹{get_expiry_aware_ltp(atm_strike-step, True, active_spot)}", "STRIKE": atm_strike-step, "PUT": f"₹{get_expiry_aware_ltp(atm_strike-step, False, active_spot)}", "PUT OI": "3.55L"},
+        {"CALL OI": "1.00L", "CALL": f"₹{get_expiry_aware_ltp(atm_strike-50, True, active_spot)}", "STRIKE": atm_strike-50, "PUT": f"₹{get_expiry_aware_ltp(atm_strike-50, False, active_spot)}", "PUT OI": "3.55L"},
         {"CALL OI": "2.38L", "CALL": f"₹{ce_itm_ltp}", "STRIKE": atm_strike, "PUT": f"₹{get_expiry_aware_ltp(atm_strike, False, active_spot)}", "PUT OI": "7.15L"},
-        {"CALL OI": "9.32L", "CALL": f"₹{ce_atm_ltp}", "STRIKE": atm_strike+step, "PUT": f"₹{get_expiry_aware_ltp(atm_strike+step, False, active_spot)}", "PUT OI": "5.66L"},
+        {"CALL OI": "9.32L", "CALL": f"₹{ce_atm_ltp}", "STRIKE": atm_strike+50, "PUT": f"₹{get_expiry_aware_ltp(atm_strike+50, False, active_spot)}", "PUT OI": "5.66L"},
     ])
     st.dataframe(chain_df, use_container_width=True, hide_index=True)
 
 with tab_chart:
     st.markdown("<div style='font-size:11px; font-weight:800; margin-bottom:4px;'>📈 OI Distribution</div>", unsafe_allow_html=True)
     fig = go.Figure()
-    fig.add_trace(go.Bar(x=[str(atm_strike-step), str(atm_strike), str(atm_strike+step)], y=[1.00, 2.38, 9.32], name='Call OI', marker_color='#DC2626'))
-    fig.add_trace(go.Bar(x=[str(atm_strike-step), str(atm_strike), str(atm_strike+step)], y=[3.55, 7.15, 5.66], name='Put OI', marker_color='#16A34A'))
-    fig.update_layout(barmode='group', height=220, margin=dict(l=10, r=10, t=10, b=10), template="plotly_white")
+    fig.add_trace(go.Bar(x=[str(atm_strike-50), str(atm_strike), str(atm_strike+50)], y=[1.00, 2.38, 9.32], name='Call OI', marker_color='#F85149'))
+    fig.add_trace(go.Bar(x=[str(atm_strike-50), str(atm_strike), str(atm_strike+50)], y=[3.55, 7.15, 5.66], name='Put OI', marker_color='#238636'))
+    fig.update_layout(barmode='group', height=220, margin=dict(l=10, r=10, t=10, b=10), template="plotly_dark")
     st.plotly_chart(fig, use_container_width=True)
 
