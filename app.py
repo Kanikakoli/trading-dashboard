@@ -17,7 +17,7 @@ st.set_page_config(
 
 def check_password():
     def password_entered():
-        if st.session_state["password"] == "pro12345":  # Yahan apna password change kar sakte hain
+        if st.session_state["password"] == "pro12345":
             st.session_state["password_correct"] = True
             del st.session_state["password"]
         else:
@@ -179,47 +179,61 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------------
-# 4. MARKET SEGMENTS & SUPPORT / RESISTANCE CARDS
+# 4. MARKET SEGMENTS & SUPPORT / RESISTANCE CARDS (WITH FILTER)
 # ------------------------------------------------------------------
 st.markdown("<div style='font-size:12px; font-weight:800; margin: 6px 0; color:#1E293B;'>📊 Market Segments & Support/Resistance Matrix</div>", unsafe_allow_html=True)
 
-sr_html_list = []
-for name, info in market_data.items():
-    p = info['price']
-    step = 100 if "BANK" in name or "SENSEX" in name else 50
-    s1 = int(round(p / step) * step) - step
-    s2 = s1 - step
-    r1 = int(round(p / step) * step) + step
-    r2 = r1 + step
-    
-    sr_html_list.append(f"""
-    <div class="sr-card">
-        <div class="sr-header">
-            <span>{name}</span>
-            <span class="txt-green">{p}</span>
-        </div>
-        <div class="sr-grid">
-            <div class="sr-box box-s2">
-                <div class="sr-lbl">S2</div>
-                <div class="sr-num txt-green">{s2}</div>
-            </div>
-            <div class="sr-box box-s1">
-                <div class="sr-lbl">S1</div>
-                <div class="sr-num txt-green">{s1}</div>
-            </div>
-            <div class="sr-box box-r1">
-                <div class="sr-lbl">R1</div>
-                <div class="sr-num txt-red">{r1}</div>
-            </div>
-            <div class="sr-box box-r2">
-                <div class="sr-lbl">R2</div>
-                <div class="sr-num txt-red">{r2}</div>
-            </div>
-        </div>
-    </div>
-    """)
+# Indices Filter Multiselect
+all_index_names = list(market_data.keys())
+selected_indices = st.multiselect(
+    "🔍 Filter Indices",
+    options=all_index_names,
+    default=all_index_names,
+    help="Select specific indices to display or keep all selected."
+)
 
-st.markdown("".join(sr_html_list), unsafe_allow_html=True)
+sr_html_list = []
+for name in selected_indices:
+    if name in market_data:
+        info = market_data[name]
+        p = info['price']
+        step = 100 if "BANK" in name or "SENSEX" in name else 50
+        s1 = int(round(p / step) * step) - step
+        s2 = s1 - step
+        r1 = int(round(p / step) * step) + step
+        r2 = r1 + step
+        
+        sr_html_list.append(f"""
+        <div class="sr-card">
+            <div class="sr-header">
+                <span>{name}</span>
+                <span class="txt-green">{p}</span>
+            </div>
+            <div class="sr-grid">
+                <div class="sr-box box-s2">
+                    <div class="sr-lbl">S2</div>
+                    <div class="sr-num txt-green">{s2}</div>
+                </div>
+                <div class="sr-box box-s1">
+                    <div class="sr-lbl">S1</div>
+                    <div class="sr-num txt-green">{s1}</div>
+                </div>
+                <div class="sr-box box-r1">
+                    <div class="sr-lbl">R1</div>
+                    <div class="sr-num txt-red">{r1}</div>
+                </div>
+                <div class="sr-box box-r2">
+                    <div class="sr-lbl">R2</div>
+                    <div class="sr-num txt-red">{r2}</div>
+                </div>
+            </div>
+        </div>
+        """)
+
+if sr_html_list:
+    st.markdown("".join(sr_html_list), unsafe_allow_html=True)
+else:
+    st.info("Please select at least one index from the filter above.")
 
 # Global Markets & VIX Indicator Bar
 st.markdown("""
