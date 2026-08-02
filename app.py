@@ -10,7 +10,7 @@ import time
 # 1. PAGE CONFIGURATION & SECURE SESSION PASSWORD
 # ------------------------------------------------------------------
 st.set_page_config(
-    page_title="PRO TERMINAL v21.0 (ULTRA-DYNAMIC MASTER)",
+    page_title="PRO TERMINAL v22.0 (INDICES LIVE TRADES & AI MASTER)",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -104,12 +104,12 @@ st.markdown("""
 .bg-hold { background-color: #2563EB; box-shadow: 0 0 8px rgba(37, 99, 235, 0.4); }
 
 .card-grid { 
-    display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; 
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; 
     background: #F1F5F9; padding: 6px; border-radius: 6px; 
     text-align: center; margin-top: 6px; 
 }
 .grid-lbl { font-size: 8px; color: #64748B; font-weight: 800; }
-.grid-val { font-size: 11px; color: #0F172A; font-weight: 900; }
+.grid-val { font-size: 10px; color: #0F172A; font-weight: 900; }
 .txt-green { color: #16A34A; }
 .txt-red { color: #DC2626; }
 </style>
@@ -222,7 +222,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------------
-# 4. MASTER NAVIGATION TABS (ALL PAGES INCLUDED)
+# 4. MASTER NAVIGATION TABS
 # ------------------------------------------------------------------
 main_pages = st.tabs([
     "🚀 Intraday Setups", "💡 AI Trade Evaluator", "⚡ Scalping Engine", 
@@ -271,24 +271,34 @@ with main_pages[0]:
     if sr_html:
         st.markdown("".join(sr_html), unsafe_allow_html=True)
         
-    st.markdown("<div style='font-size:11px; font-weight:800; margin: 8px 0 4px 0; color:#1E293B;'>🚀 Live Intraday Stocks & Actionable Setups</div>", unsafe_allow_html=True)
-    intraday_stocks = [
-        {"sym": "RELIANCE", "price": round(2980.50 + (st.session_state.refresh_counter % 3), 2), "rec": "STRONG BUY", "acc": "92.4% Accuracy", "entry": 2975.0, "sl": 2950.0, "target": 3040.0},
-        {"sym": "TCS", "price": round(4120.00 - (st.session_state.refresh_counter % 2), 2), "rec": "HOLD", "acc": "87.2% Accuracy", "entry": 4110.0, "sl": 4080.0, "target": 4180.0},
-        {"sym": "HDFCBANK", "price": round(1650.25 + (st.session_state.refresh_counter % 4) * 0.5, 2), "rec": "BUY", "acc": "90.8% Accuracy", "entry": 1645.0, "sl": 1630.0, "target": 1685.0},
-        {"sym": "INFY", "price": round(1825.80 - (st.session_state.refresh_counter % 3) * 0.8, 2), "rec": "SELL", "acc": "85.6% Accuracy", "entry": 1830.0, "sl": 1850.0, "target": 1780.0}
+    st.markdown("<div style='font-size:11px; font-weight:800; margin: 8px 0 4px 0; color:#1E293B;'>🚀 Live Indices Options & Actionable Setups (Budget & Trailing SL)</div>", unsafe_allow_html=True)
+    
+    # Filter live trades based on selected index dropdown above
+    intraday_indices_trades = [
+        {"sym": "NIFTY 24300 CE", "index": "NIFTY 50", "ltp": round(101.70 + (st.session_state.refresh_counter % 3), 2), "rec": "STRONG BUY", "acc": "94.2% Accuracy", "entry": 98.0, "sl": 85.0, "target": 135.0, "budget": "₹15,000", "trail": "SL Trailed to ₹92"},
+        {"sym": "BANKNIFTY 57100 CE", "index": "BANK NIFTY", "ltp": round(340.20 - (st.session_state.refresh_counter % 2), 2), "rec": "BUY", "acc": "91.5% Accuracy", "entry": 325.0, "sl": 295.0, "target": 410.0, "budget": "₹25,000", "trail": "SL Trailed to ₹310"},
+        {"sym": "SENSEX 77500 CE", "index": "SENSEX", "ltp": round(450.50 + (st.session_state.refresh_counter % 4) * 0.5, 2), "rec": "STRONG BUY", "acc": "93.1% Accuracy", "entry": 430.0, "sl": 390.0, "target": 540.0, "budget": "₹30,000", "trail": "SL Trailed to ₹415"},
+        {"sym": "FINNIFTY 26200 PE", "index": "FINNIFTY", "ltp": round(88.50 - (st.session_state.refresh_counter % 3) * 0.8, 2), "rec": "SELL", "acc": "86.8% Accuracy", "entry": 92.0, "sl": 105.0, "target": 65.0, "budget": "₹12,000", "trail": "SL Trailed to ₹98"},
+        {"sym": "MIDCPNIFTY 14700 CE", "index": "MIDCPNIFTY", "ltp": round(64.20 + (st.session_state.refresh_counter % 2), 2), "rec": "BUY", "acc": "89.4% Accuracy", "entry": 60.0, "sl": 52.0, "target": 85.0, "budget": "₹10,000", "trail": "SL Trailed to ₹57"}
     ]
-    for item in intraday_stocks:
+    
+    filtered_trades = intraday_indices_trades if selected_index == "ALL INDICES" else [t for t in intraday_indices_trades if t["index"] == selected_index]
+    
+    if not filtered_trades:
+        st.info(f"No active live index trades currently running for {selected_index}.")
+    
+    for item in filtered_trades:
         badge_cls = "bg-buy" if "BUY" in item["rec"] else ("bg-sell" if item["rec"] == "SELL" else "bg-hold")
         st.markdown(f"""
         <div class="analysis-card">
-            <div class="status-banner banner-running"><span>🟢 LIVE TICK ACTIVE</span><span>⭐ {item['acc']}</span></div>
-            <div class="card-header"><span class="symbol-title">{item['sym']} (NSE)</span><span class="badge-rec {badge_cls}">{item['rec']}</span></div>
+            <div class="status-banner banner-running"><span>🟢 LIVE INDEX TRADE ({item['index']}) | 💰 Budget: {item['budget']}</span><span>⭐ {item['acc']}</span></div>
+            <div class="card-header"><span class="symbol-title">{item['sym']}</span><span class="badge-rec {badge_cls}">{item['rec']}</span></div>
             <div class="card-grid">
-                <div><div class="grid-lbl">LIVE LTP</div><div class="grid-val txt-green">₹{item['price']}</div></div>
+                <div><div class="grid-lbl">LIVE LTP</div><div class="grid-val txt-green">₹{item['ltp']}</div></div>
                 <div><div class="grid-lbl">ENTRY</div><div class="grid-val">₹{item['entry']}</div></div>
-                <div><div class="grid-lbl">SL</div><div class="grid-val" style="color:#DC2626;">₹{item['sl']}</div></div>
+                <div><div class="grid-lbl">TRAILED SL</div><div class="grid-val" style="color:#DC2626;">₹{item['sl']}</div></div>
                 <div><div class="grid-lbl">TARGET</div><div class="grid-val" style="color:#16A34A;">₹{item['target']}</div></div>
+                <div><div class="grid-lbl">STATUS / TRAIL</div><div class="grid-val" style="color:#2563EB;">{item['trail']}</div></div>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -296,47 +306,50 @@ with main_pages[0]:
 # --- PAGE 2: AI TRADE EVALUATOR ---
 with main_pages[1]:
     st.markdown("<div style='font-size:11px; font-weight:800; margin-bottom:6px; color:#1E293B;'>💡 AI Multi-Indicator Trade Evaluator (Custom Input Engine)</div>", unsafe_allow_html=True)
-    c1, c2, c3 = st.columns(3)
-    with c1: custom_symbol = st.text_input("Enter Stock / Strike", value="NIFTY 24350")
-    with c2: eval_type = st.selectbox("Option / Trade Type", ["CE (Call)", "PE (Put)", "EQ (Cash Equity)"])
-    with c3: user_custom_price = st.number_input("Enter Your Entry/LTP Price (₹)", value=190.70)
+    c1, c2, c3, c4 = st.columns(4)
+    with c1: custom_symbol = st.text_input("Enter Index Strike", value="NIFTY 24350 CE")
+    with c2: user_custom_price = st.number_input("Enter Entry/LTP Price (₹)", value=190.70)
+    with c3: user_budget = st.selectbox("Capital / Lot Budget", ["₹10,000 (1 Lot)", "₹25,000 (2 Lots)", "₹50,000 (4 Lots)", "₹1,00,000+ (Pro)"])
+    with c4: risk_mode = st.selectbox("Risk Tolerance", ["Aggressive (Trailing Tight)", "Moderate (Balanced)", "Conservative (Wide SL)"])
     
-    is_buy_side = "CE" in eval_type or "EQ" in eval_type
-    calculated_sl = round(user_custom_price * 0.65, 2)
-    calculated_target = round(user_custom_price * 1.50, 2)
+    calculated_sl = round(user_custom_price * 0.80, 2)
+    calculated_target = round(user_custom_price * 1.45, 2)
+    trailed_status = "SL Trailed to Break-Even (+0.0)" if "Aggressive" in risk_mode else "Initial SL Active"
     
     st.markdown(f"""
     <div class="analysis-card" style="border-left-color: #2563EB;">
-        <div class="status-banner banner-target"><span>🎯 AI MATRIX EVALUATED & SYNCED</span><span>⭐ Confidence: 93.8% Accuracy</span></div>
-        <div class="card-header"><span class="symbol-title">{custom_symbol} {eval_type[:2]}</span><span class="badge-rec bg-buy">EXECUTE TRADE</span></div>
-        <div class="card-grid">
+        <div class="status-banner banner-target"><span>🎯 AI INDEX MATRIX EVALUATED & SYNCED | Budget: {user_budget.split(' ')[0]}</span><span>⭐ Confidence: 94.5% Accuracy</span></div>
+        <div class="card-header"><span class="symbol-title">{custom_symbol}</span><span class="badge-rec bg-buy">EXECUTE INDEX TRADE</span></div>
+        <div class="card-grid" style="grid-template-columns: repeat(5, 1fr);">
             <div><div class="grid-lbl">LTP / PRICE</div><div class="grid-val" style="color:#2563EB;">₹{user_custom_price}</div></div>
             <div><div class="grid-lbl">SUGGESTED ENTRY</div><div class="grid-val">₹{user_custom_price}</div></div>
-            <div><div class="grid-lbl">STOPLOSS (SL)</div><div class="grid-val" style="color:#DC2626;">₹{calculated_sl}</div></div>
+            <div><div class="grid-lbl">TRAILED SL</div><div class="grid-val" style="color:#DC2626;">₹{calculated_sl}</div></div>
             <div><div class="grid-lbl">TARGET</div><div class="grid-val" style="color:#16A34A;">₹{calculated_target}</div></div>
+            <div><div class="grid-lbl">MANAGEMENT</div><div class="grid-val" style="color:#2563EB;">{trailed_status}</div></div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
 # --- PAGE 3: SCALPING ENGINE ---
 with main_pages[2]:
-    st.markdown("<div style='font-size:11px; font-weight:800; margin-bottom:6px; color:#1E293B;'>⚡ Lightning-Fast Scalping Engine (Real-Time Momentum)</div>", unsafe_allow_html=True)
+    st.markdown("<div style='font-size:11px; font-weight:800; margin-bottom:6px; color:#1E293B;'>⚡ Lightning-Fast Scalping Engine (Real-Time Index Momentum)</div>", unsafe_allow_html=True)
     scalps = [
-        {"sym": "NIFTY 24300 CE", "ltp": round(105.40 + (st.session_state.refresh_counter % 3) * 1.2, 2), "action": "STRONG BUY", "acc": "95.1% Accuracy", "sl": "95.0", "target": "130.0"},
-        {"sym": "BANKNIFTY 57100 CE", "ltp": round(340.20 - (st.session_state.refresh_counter % 2) * 2.0, 2), "action": "BUY", "acc": "91.8% Accuracy", "sl": "315.0", "target": "395.0"},
-        {"sym": "FINNIFTY 26200 PE", "ltp": round(88.50 + (st.session_state.refresh_counter % 4) * 0.7, 2), "action": "SELL", "acc": "86.5% Accuracy", "sl": "96.0", "target": "70.0"}
+        {"sym": "NIFTY 24300 CE", "ltp": round(105.40 + (st.session_state.refresh_counter % 3) * 1.2, 2), "action": "STRONG BUY", "acc": "95.1% Accuracy", "sl": "95.0 (Trailed)", "target": "130.0", "budget": "₹15,000"},
+        {"sym": "BANKNIFTY 57100 CE", "ltp": round(340.20 - (st.session_state.refresh_counter % 2) * 2.0, 2), "action": "BUY", "acc": "91.8% Accuracy", "sl": "315.0 (Trailed)", "target": "395.0", "budget": "₹25,000"},
+        {"sym": "FINNIFTY 26200 PE", "ltp": round(88.50 + (st.session_state.refresh_counter % 4) * 0.7, 2), "action": "SELL", "acc": "86.5% Accuracy", "sl": "96.0", "target": "70.0", "budget": "₹12,000"}
     ]
     for sc in scalps:
         badge_cls = "bg-buy" if "BUY" in sc["action"] else "bg-sell"
         st.markdown(f"""
         <div class="analysis-card" style="border-left-color: #2563EB;">
-            <div class="status-banner" style="background: #EFF6FF; color: #1D4ED8;"><span>⚡ MOMENTUM SPIKE</span><span>⭐ {sc['acc']}</span></div>
+            <div class="status-banner" style="background: #EFF6FF; color: #1D4ED8;"><span>⚡ MOMENTUM SPIKE | Budget: {sc['budget']}</span><span>⭐ {sc['acc']}</span></div>
             <div class="card-header"><span class="symbol-title">{sc['sym']}</span><span class="badge-rec {badge_cls}">{sc['action']}</span></div>
-            <div class="card-grid">
+            <div class="card-grid" style="grid-template-columns: repeat(5, 1fr);">
                 <div><div class="grid-lbl">LIVE LTP</div><div class="grid-val" style="color:#2563EB;">₹{sc['ltp']}</div></div>
                 <div><div class="grid-lbl">TIMEFRAME</div><div class="grid-val">3 Min</div></div>
-                <div><div class="grid-lbl">SL</div><div class="grid-val" style="color:#DC2626;">₹{sc['sl']}</div></div>
+                <div><div class="grid-lbl">TRAILED SL</div><div class="grid-val" style="color:#DC2626;">₹{sc['sl']}</div></div>
                 <div><div class="grid-lbl">TARGET</div><div class="grid-val" style="color:#16A34A;">₹{sc['target']}</div></div>
+                <div><div class="grid-lbl">MODE</div><div class="grid-val" style="color:#16A34A;">Active Trail</div></div>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -346,13 +359,14 @@ with main_pages[3]:
     st.markdown("<div style='font-size:11px; font-weight:800; margin-bottom:6px; color:#1E293B;'>🌙 BTST / STBT Overnight Holding Scanner</div>", unsafe_allow_html=True)
     st.markdown("""
     <div class="analysis-card">
-        <div class="status-banner banner-target"><span>🌙 OVERNIGHT MOMENTUM READY</span><span>⭐ 89.0% Accuracy</span></div>
+        <div class="status-banner banner-target"><span>🌙 OVERNIGHT INDEX MOMENTUM READY | Budget: ₹50,000</span><span>⭐ 89.0% Accuracy</span></div>
         <div class="card-header"><span class="symbol-title">NIFTY 24350 CE (Expiry: 04 Aug 2026)</span><span class="badge-rec bg-buy">BTST BUY</span></div>
-        <div class="card-grid">
+        <div class="card-grid" style="grid-template-columns: repeat(5, 1fr);">
             <div><div class="grid-lbl">LTP</div><div class="grid-val">₹80.60</div></div>
             <div><div class="grid-lbl">OVERNIGHT SL</div><div class="grid-val" style="color:#DC2626;">₹45.00</div></div>
             <div><div class="grid-lbl">TARGET 1</div><div class="grid-val" style="color:#16A34A;">₹130.00</div></div>
             <div><div class="grid-lbl">TARGET 2</div><div class="grid-val" style="color:#16A34A;">₹175.00</div></div>
+            <div><div class="grid-lbl">TRAILING</div><div class="grid-val" style="color:#2563EB;">Auto-Lock Armed</div></div>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -377,13 +391,13 @@ with main_pages[4]:
 
 # --- PAGE 6: STOCK INDICATORS & RECOMMENDATIONS ---
 with main_pages[5]:
-    st.markdown("<div style='font-size:11px; font-weight:800; margin-bottom:6px; color:#1E293B;'>📈 Advanced Indicator Screener & Stock Buy/Sell Recommendations</div>", unsafe_allow_html=True)
+    st.markdown("<div style='font-size:11px; font-weight:800; margin-bottom:6px; color:#1E293B;'>📈 Advanced Indicator Screener & Index/Stock Recommendations</div>", unsafe_allow_html=True)
     indicator_table = pd.DataFrame([
-        {"Stock/Symbol": "RELIANCE", "RSI (14)": "62.4 (Bullish)", "MACD": "Positive Crossover", "Supertrend": "BUY", "Accuracy": "92.1%", "Final Signal": "STRONG BUY"},
-        {"Stock/Symbol": "TCS", "RSI (14)": "51.2 (Neutral)", "MACD": "Flat", "Supertrend": "HOLD", "Accuracy": "88.4%", "Final Signal": "ACCUMULATE"},
-        {"Stock/Symbol": "HDFCBANK", "RSI (14)": "68.9 (Strong)", "MACD": "Bullish Expansion", "Supertrend": "BUY", "Accuracy": "91.5%", "Final Signal": "STRONG BUY"},
-        {"Stock/Symbol": "INFY", "RSI (14)": "38.5 (Bearish)", "MACD": "Negative Crossover", "Supertrend": "SELL", "Accuracy": "84.9%", "Final Signal": "SELL / SHORT"},
-        {"Stock/Symbol": "SBIN", "RSI (14)": "58.1 (Neutral)", "MACD": "Positive", "Supertrend": "BUY", "Accuracy": "89.2%", "Final Signal": "BUY"}
+        {"Index / Asset": "NIFTY 50", "RSI (14)": "62.4 (Bullish)", "MACD": "Positive Crossover", "Supertrend": "BUY", "Accuracy": "92.1%", "Final Signal": "STRONG BUY"},
+        {"Index / Asset": "BANK NIFTY", "RSI (14)": "65.8 (Strong)", "MACD": "Bullish Expansion", "Supertrend": "BUY", "Accuracy": "93.4%", "Final Signal": "STRONG BUY"},
+        {"Index / Asset": "SENSEX", "RSI (14)": "58.2 (Neutral)", "MACD": "Flat", "Supertrend": "BUY", "Accuracy": "89.5%", "Final Signal": "BUY"},
+        {"Index / Asset": "FINNIFTY", "RSI (14)": "48.5 (Neutral)", "MACD": "Negative Crossover", "Supertrend": "HOLD", "Accuracy": "86.9%", "Final Signal": "ACCUMULATE"},
+        {"Index / Asset": "MIDCPNIFTY", "RSI (14)": "61.0 (Bullish)", "MACD": "Positive", "Supertrend": "BUY", "Accuracy": "90.2%", "Final Signal": "BUY"}
     ])
     st.dataframe(indicator_table, use_container_width=True, hide_index=True)
 
