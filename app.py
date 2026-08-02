@@ -10,7 +10,7 @@ import time
 # 1. PAGE CONFIGURATION & SECURE SESSION PASSWORD
 # ------------------------------------------------------------------
 st.set_page_config(
-    page_title="PRO TERMINAL v23.0 (HERO-ZERO & MUTUAL FUNDS MASTER)",
+    page_title="PRO TERMINAL v23.1 (FIXED SYNTAX)",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -371,7 +371,7 @@ with main_pages[3]:
     </div>
     """, unsafe_allow_html=True)
 
-# --- PAGE 5: HERO-ZERO TRADES RECOMMENDATIONS (NEW) ---
+# --- PAGE 5: HERO-ZERO TRADES RECOMMENDATIONS ---
 with main_pages[4]:
     st.markdown("<div style='font-size:11px; font-weight:800; margin-bottom:6px; color:#1E293B;'>🎯 Hero-Zero Expiry Day Special Recommendations (All Indices)</div>", unsafe_allow_html=True)
     st.markdown("<div style='font-size:9px; color:#64748B; margin-bottom:8px;'>High-risk, high-reward expiry setups designed for low entry premium with explosive upside potential.</div>", unsafe_allow_html=True)
@@ -399,19 +399,20 @@ with main_pages[4]:
         </div>
         """, unsafe_allow_html=True)
 
-# --- PAGE 6: MUTUAL FUNDS ANALYSIS FOR GOOD RETURNS (NEW) ---
+# --- PAGE 6: MUTUAL FUNDS ANALYSIS FOR GOOD RETURNS ---
 with main_pages[5]:
     st.markdown("<div style='font-size:11px; font-weight:800; margin-bottom:6px; color:#1E293B;'>📊 Best Mutual Funds Analysis & Recommendations for High Returns</div>", unsafe_allow_html=True)
     st.markdown("<div style='font-size:9px; color:#64748B; margin-bottom:8px;'>Curated top-performing equity and hybrid mutual funds analyzed for long-term compounding, alpha generation, and robust risk-adjusted returns.</div>", unsafe_allow_html=True)
     
-    mf_table = pd.DataFrame([
+    mf_data_list = [
         {"Fund Name & Category": "Quant Small Cap Fund (Small Cap)", "1Y Return": "+38.4%", "3Y CAGR": "+28.2%", "5Y CAGR": "+31.6%", "Risk Level": "Very High", "Alpha Score": "9.8 / 10", "Recommendation": "TOP BUY (SIP)"},
-        {"Bandhan Small Cap Fund (Small Cap)", "1Y Return": "+35.2%", "3Y CAGR": "+26.8%", "5Y CAGR": "+29.4%", "Risk Level": "Very High", "Alpha Score": "9.4 / 10", "Recommendation": "BUY"},
-        {"Nippon India Small Cap Fund (Small Cap)", "1Y Return": "+32.9%", "3Y CAGR": "+25.4%", "5Y CAGR": "+28.1%", "Risk Level": "Very High", "Alpha Score": "9.2 / 10", "Recommendation": "STRONG SIP"},
-        {"Parag Parikh Flexi Cap Fund (Flexi Cap)", "1Y Return": "+24.1%", "3Y CAGR": "+20.5%", "5Y CAGR": "+22.8%", "Risk Level": "Moderately High", "Alpha Score": "9.5 / 10", "Recommendation": "CORE HOLD (SIP)"},
-        {"Axis Midcap Fund (Mid Cap)", "1Y Return": "+28.6%", "3Y CAGR": "+21.9%", "5Y CAGR": "+23.4%", "Risk Level": "High", "Alpha Score": "8.9 / 10", "Recommendation": "ACCUMULATE"},
-        {"ICICI Pru Bluechip Fund (Large Cap)", "1Y Return": "+21.5%", "3Y CAGR": "+18.2%", "5Y CAGR": "+17.9%", "Risk Level": "Moderate", "Alpha Score": "8.8 / 10", "Recommendation": "STABLE SIP"}
-    ])
+        {"Fund Name & Category": "Bandhan Small Cap Fund (Small Cap)", "1Y Return": "+35.2%", "3Y CAGR": "+26.8%", "5Y CAGR": "+29.4%", "Risk Level": "Very High", "Alpha Score": "9.4 / 10", "Recommendation": "BUY"},
+        {"Fund Name & Category": "Nippon India Small Cap Fund (Small Cap)", "1Y Return": "+32.9%", "3Y CAGR": "+25.4%", "5Y CAGR": "+28.1%", "Risk Level": "Very High", "Alpha Score": "9.2 / 10", "Recommendation": "STRONG SIP"},
+        {"Fund Name & Category": "Parag Parikh Flexi Cap Fund (Flexi Cap)", "1Y Return": "+24.1%", "3Y CAGR": "+20.5%", "5Y CAGR": "+22.8%", "Risk Level": "Moderately High", "Alpha Score": "9.5 / 10", "Recommendation": "CORE HOLD (SIP)"},
+        {"Fund Name & Category": "Axis Midcap Fund (Mid Cap)", "1Y Return": "+28.6%", "3Y CAGR": "+21.9%", "5Y CAGR": "+23.4%", "Risk Level": "High", "Alpha Score": "8.9 / 10", "Recommendation": "ACCUMULATE"},
+        {"Fund Name & Category": "ICICI Pru Bluechip Fund (Large Cap)", "1Y Return": "+21.5%", "3Y CAGR": "+18.2%", "5Y CAGR": "+17.9%", "Risk Level": "Moderate", "Alpha Score": "8.8 / 10", "Recommendation": "STABLE SIP"}
+    ]
+    mf_table = pd.DataFrame(mf_data_list)
     st.dataframe(mf_table, use_container_width=True, hide_index=True)
     
     st.markdown("<div style='font-size:11px; font-weight:800; margin: 10px 0 4px 0; color:#1E293B;'>💡 AI Mutual Fund Wealth Allocation Strategy</div>", unsafe_allow_html=True)
