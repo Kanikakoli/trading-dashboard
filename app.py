@@ -59,7 +59,10 @@ def log_trade_performance(trade_list):
         })
     df = pd.DataFrame(data)
     file_exists = os.path.isfile("trade_performance.csv")
-    df.to_csv("trade_performance.csv", mode='a', index=False, header=not file_exists)
+    try:
+        df.to_csv("trade_performance.csv", mode='a', index=False, header=not file_exists)
+    except Exception:
+        pass
 
 # ------------------------------------------------------------------
 # 3. PROFESSIONAL HIGH-CONTRAST DYNAMIC CSS
@@ -244,7 +247,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------------
-# 5. MASTER NAVIGATION TABS (INCLUDING WIN RATE TRACKER)
+# 5. MASTER NAVIGATION TABS
 # ------------------------------------------------------------------
 main_pages = st.tabs([
     "🚀 Intraday Setups", "💡 AI Trade Evaluator", "⚡ Scalping Engine", 
@@ -305,7 +308,6 @@ with main_pages[0]:
         {"sym": "MIDCPNIFTY 14700 CE", "index": "MIDCPNIFTY", "ltp": round(64.20 + (st.session_state.refresh_counter % 2), 2), "rec": "BUY", "acc": "89.4% Accuracy", "entry": 60.0, "sl": 52.0, "target": 85.0, "budget": "₹10,000", "trail": "SL Trailed to ₹57"}
     ]
     
-    # Automatically log active intraday trades for performance tracking
     log_trade_performance(intraday_indices_trades)
     
     filtered_trades = intraday_indices_trades if selected_index == "ALL INDICES" else [t for t in intraday_indices_trades if t["index"] == selected_index]
@@ -502,17 +504,26 @@ with main_pages[8]:
 # --- PAGE 10: WIN RATE TRACKER ---
 with main_pages[9]:
     st.markdown("<div style='font-size:11px; font-weight:800; margin-bottom:6px; color:#1E293B;'>📊 Historical Trade Accuracy & Win Rate Tracker</div>", unsafe_allow_html=True)
+    
     if os.path.isfile("trade_performance.csv"):
-        df_perf = pd.read_csv("trade_performance.csv")
-        st.dataframe(df_perf, use_container_width=True, hide_index=True)
-        st.markdown("### 🏆 Overall Performance Metrics")
-        st.metric(label="Total Tracked Snapshots", value=len(df_perf))
-        st.metric(label="Simulated Win Rate", value="88.4%")
-        
-        if st.button("🗑️ Clear Tracking History"):
+        try:
+            df_perf = pd.read_csv("trade_performance.csv")
+            st.dataframe(df_perf, use_container_width=True, hide_index=True)
+            st.markdown("### 🏆 Overall Performance Metrics")
+            st.metric(label="Total Tracked Snapshots", value=len(df_perf))
+            st.metric(label="Simulated Win Rate", value="88.4%")
+        except Exception:
             os.remove("trade_performance.csv")
-            st.success("History cleared successfully! Refreshing...")
-            st.rerun()
+            st.warning("Purani CSV file corrupt thi, isliye use reset kar diya gaya hai. Page refresh karein.")
     else:
         st.info("Abhi koi trade data logged nahi hai. Jaise-jaise app chalegi, data yahan collect hoga.")
+        
+    if os.path.isfile("trade_performance.csv"):
+        if st.button("🗑️ Clear Tracking History"):
+            try:
+                os.remove("trade_performance.csv")
+                st.success("History cleared successfully! Refreshing...")
+                st.rerun()
+            except Exception:
+                pass
 
