@@ -1,0 +1,25 @@
+import pandas as pd
+from datetime import datetime
+import os
+
+def log_trade_performance(trade_list):
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    data = []
+    
+    for t in trade_list:
+        data.append({
+            "Timestamp": timestamp,
+            "Symbol": t.get("sym", "N/A"),
+            "Index": t.get("index", "N/A"),
+            "Entry Price": t.get("entry", t.get("ltp", 0)),
+            "Current LTP": t.get("ltp", 0),
+            "Target": t.get("target", 0),
+            "Stop Loss": t.get("sl", 0),
+            "Recommendation": t.get("rec", "BUY")
+        })
+    
+    df = pd.DataFrame(data)
+    
+    # File mein append karte rahein taaki history bani rahe
+    file_exists = os.path.isfile("trade_performance.csv")
+    df.to_csv("trade_performance.csv", mode='a', index=False, header=not file_exists)
