@@ -11,7 +11,7 @@ import os
 # 1. PAGE CONFIGURATION & SECURE SESSION PASSWORD
 # ------------------------------------------------------------------
 st.set_page_config(
-    page_title="PRO TERMINAL v24.0 (SYNC & PERFORMANCE OPTIMIZED)",
+    page_title="PRO TERMINAL v24.1 (EXPIRY SYNC FIX)",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -41,13 +41,15 @@ if not check_password():
     st.stop()
 
 # ------------------------------------------------------------------
-# 2. HELPER: DYNAMIC EXPIRY & LIVE TRADE GENERATOR
+# 2. HELPER: DYNAMIC EXPIRY & LIVE TRADE GENERATOR (FIXED)
 # ------------------------------------------------------------------
 def get_next_weekday_expiry(target_weekday):
-    """Calculates upcoming specific weekday (0=Mon, 1=Tue, 3=Thu, etc.)"""
+    """Calculates upcoming or current specific weekday (0=Mon, 1=Tue, 3=Thu, etc.)"""
     today = datetime.now().date()
     days_ahead = target_weekday - today.weekday()
-    if days_ahead <= 0:  
+    
+    # Agar aaj hi expiry day hai (jaise Tuesday = 1), toh wahi date aaye; warna next wali
+    if days_ahead < 0:  
         days_ahead += 7
     next_date = today + timedelta(days=days_ahead)
     return next_date.strftime('%d %b %Y').upper()
@@ -69,7 +71,6 @@ def log_trade_performance(trade_list):
     df = pd.DataFrame(data)
     file_exists = os.path.isfile("trade_performance.csv")
     try:
-        # Avoid duplicate consecutive logs within the same second
         if file_exists:
             existing_df = pd.read_csv("trade_performance.csv")
             if not existing_df.empty and existing_df.iloc[-1]["Timestamp"].startswith(timestamp[:16]):
@@ -158,7 +159,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------------
-# 4. LIVE MARKET & GLOBAL DATA ENGINE (OPTIMIZED CACHING)
+# 4. LIVE MARKET & GLOBAL DATA ENGINE
 # ------------------------------------------------------------------
 tickers = {
     "NIFTY 50": "^NSEI",
@@ -187,7 +188,6 @@ def fetch_live_market(refresh_token):
         "FINNIFTY": {"price": 26166.69, "chg": 0.62}, 
         "MIDCPNIFTY": {"price": 14668.97, "chg": 0.95}
     }
-    
     for name, sym in tickers.items():
         try:
             t = yf.Ticker(sym)
@@ -197,7 +197,6 @@ def fetch_live_market(refresh_token):
             chg = round(((price - prev) / prev) * 100, 2)
             res[name] = {"price": price, "chg": chg}
         except Exception:
-            # Fallback + minor dynamic variation indexed by refresh_token
             base = fallbacks[name]["price"]
             res[name] = {"price": round(base + (refresh_token % 5) * 0.5, 2), "chg": fallbacks[name]["chg"]}
     return res
@@ -241,7 +240,6 @@ if auto_refresh:
     st.session_state.refresh_counter += 1
     st.rerun()
 
-# Dynamic PCR & Advanced Metrics derived from live state
 adv = int(1350 + (st.session_state.refresh_counter * 3) % 30)
 dec = int(2200 - adv)
 total_put_oi = 2124317 + (st.session_state.refresh_counter * 150)
