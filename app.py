@@ -11,7 +11,7 @@ import os
 # 1. PAGE CONFIGURATION & SECURE SESSION PASSWORD
 # ------------------------------------------------------------------
 st.set_page_config(
-    page_title="PRO TERMINAL v24.1 (EXPIRY SYNC FIX)",
+    page_title="PRO TERMINAL v24.1",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -41,14 +41,12 @@ if not check_password():
     st.stop()
 
 # ------------------------------------------------------------------
-# 2. HELPER: DYNAMIC EXPIRY & LIVE TRADE GENERATOR (FIXED)
+# 2. HELPER: DYNAMIC EXPIRY & LIVE TRADE GENERATOR
 # ------------------------------------------------------------------
 def get_next_weekday_expiry(target_weekday):
     """Calculates upcoming or current specific weekday (0=Mon, 1=Tue, 3=Thu, etc.)"""
     today = datetime.now().date()
     days_ahead = target_weekday - today.weekday()
-    
-    # Agar aaj hi expiry day hai (jaise Tuesday = 1), toh wahi date aaye; warna next wali
     if days_ahead < 0:  
         days_ahead += 7
     next_date = today + timedelta(days=days_ahead)
@@ -224,7 +222,6 @@ global_data = fetch_global_markets(st.session_state.refresh_counter)
 nifty_price = market_data["NIFTY 50"]["price"]
 current_time = datetime.now().strftime('%H:%M:%S')
 
-# Top Control Bar & Live Refresher
 col_h1, col_h2, col_h3 = st.columns([2, 1, 1])
 with col_h1:
     st.markdown(f"<h3 style='margin:0; padding:0; font-size:12px; font-weight:900; color:#0F172A;'>⚡ LIVE PRO TERMINAL ENGINE</h3><div style='font-size:8px; color:#64748B; font-weight:700;'>Live Feed Time: {current_time} | Sync State: Active</div>", unsafe_allow_html=True)
@@ -278,17 +275,10 @@ main_pages = st.tabs([
     "📊 Win Rate Tracker"
 ])
 
-# --- PAGE 1: INTRADAY SETUPS & INDICES FILTER ---
 with main_pages[0]:
     st.markdown("<div style='font-size:11px; font-weight:800; margin-bottom:4px; color:#1E293B;'>📊 All Indices S/R Matrix & Rotating Live Trades</div>", unsafe_allow_html=True)
-    
     all_idx = list(market_data.keys())
-    selected_index = st.selectbox(
-        "Select Active Index Filter for Intraday",
-        options=["ALL INDICES"] + all_idx,
-        help="Filter specific index to view its live support and resistance matrix."
-    )
-    
+    selected_index = st.selectbox("Select Active Index Filter for Intraday", options=["ALL INDICES"] + all_idx)
     display_indices = all_idx if selected_index == "ALL INDICES" else [selected_index]
     
     sr_html = []
@@ -302,13 +292,9 @@ with main_pages[0]:
             r1 = int(round(p / step) * step) + step
             r2 = r1 + step
             c_color = "txt-green" if info['chg'] >= 0 else "txt-red"
-            
             sr_html.append(f"""
             <div class="sr-card">
-                <div class="sr-header">
-                    <span>{name}</span>
-                    <span class="{c_color}">{p} ({info['chg']}%)</span>
-                </div>
+                <div class="sr-header"><span>{name}</span><span class="{c_color}">{p} ({info['chg']}%)</span></div>
                 <div class="sr-grid">
                     <div class="sr-box box-s2"><div class="sr-lbl">S2</div><div class="sr-num txt-green">{s2}</div></div>
                     <div class="sr-box box-s1"><div class="sr-lbl">S1</div><div class="sr-num txt-green">{s1}</div></div>
@@ -320,8 +306,7 @@ with main_pages[0]:
     if sr_html:
         st.markdown("".join(sr_html), unsafe_allow_html=True)
         
-    st.markdown("<div style='font-size:11px; font-weight:800; margin: 8px 0 4px 0; color:#1E293B;'>🚀 Dynamic Fresh Live Setups (Auto-Synced & Expiry Highlighted)</div>", unsafe_allow_html=True)
-    
+    st.markdown("<div style='font-size:11px; font-weight:800; margin: 8px 0 4px 0; color:#1E293B;'>🚀 Dynamic Fresh Live Setups</div>", unsafe_allow_html=True)
     rc = st.session_state.refresh_counter
     nifty_strike = int(round(nifty_price / 50) * 50)
     
@@ -330,7 +315,6 @@ with main_pages[0]:
         {"sym": f"BANKNIFTY {int(round(market_data['BANK NIFTY']['price']/100)*100)} CE", "index": "BANK NIFTY", "ltp": round(310.0 + (rc % 4) * 3.0, 2), "rec": "BUY", "acc": "91.5% Accuracy", "entry": 290.0, "sl": 265.0, "target": 380.0, "budget": "₹25,000", "status": "🟢 LIVE & RUNNING"},
         {"sym": f"SENSEX {int(round(market_data['SENSEX']['price']/100)*100)} PE", "index": "SENSEX", "ltp": round(45.20 - (rc % 3) * 2.0, 2), "rec": "⚠️ EXIT / TARGET HIT", "acc": "89.1% Accuracy", "entry": 75.0, "sl": 60.0, "target": 45.0, "budget": "₹30,000", "status": "🔴 EXPIRED / BOOK PROFIT"}
     ]
-    
     log_trade_performance(intraday_indices_trades)
     filtered_trades = intraday_indices_trades if selected_index == "ALL INDICES" else [t for t in intraday_indices_trades if t["index"] == selected_index]
     
@@ -339,7 +323,6 @@ with main_pages[0]:
         card_cls = "analysis-card-alert" if is_alert else "analysis-card"
         banner_cls = "banner-alert" if is_alert else "banner-running"
         badge_cls = "bg-alert" if is_alert else "bg-buy"
-        
         st.markdown(f"""
         <div class="{card_cls}">
             <div class="status-banner {banner_cls}"><span>⚡ {item['status']} ({item['index']}) | Budget: {item['budget']}</span><span>⭐ {item['acc']}</span></div>
@@ -354,7 +337,6 @@ with main_pages[0]:
         </div>
         """, unsafe_allow_html=True)
 
-# --- PAGE 2: AI TRADE EVALUATOR ---
 with main_pages[1]:
     st.markdown("<div style='font-size:11px; font-weight:800; margin-bottom:6px; color:#1E293B;'>💡 AI Multi-Indicator Trade Evaluator</div>", unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
@@ -365,7 +347,6 @@ with main_pages[1]:
     
     calculated_sl = round(user_custom_price * 0.82, 2)
     calculated_target = round(user_custom_price * 1.40, 2)
-    
     st.markdown(f"""
     <div class="analysis-card" style="border-left-color: #2563EB;">
         <div class="status-banner banner-target"><span>🎯 AI MATRIX EVALUATED & SYNCED | Budget: {user_budget.split(' ')[0]}</span><span>⭐ Confidence: 94.5%</span></div>
@@ -380,7 +361,6 @@ with main_pages[1]:
     </div>
     """, unsafe_allow_html=True)
 
-# --- PAGE 3: SCALPING ENGINE ---
 with main_pages[2]:
     st.markdown("<div style='font-size:11px; font-weight:800; margin-bottom:6px; color:#1E293B;'>⚡ Lightning-Fast Scalping Engine</div>", unsafe_allow_html=True)
     scalps = [
@@ -405,7 +385,6 @@ with main_pages[2]:
         </div>
         """, unsafe_allow_html=True)
 
-# --- PAGE 4: BTST SCANNER ---
 with main_pages[3]:
     st.markdown("<div style='font-size:11px; font-weight:800; margin-bottom:6px; color:#1E293B;'>🌙 BTST / STBT Overnight Holding Scanner</div>", unsafe_allow_html=True)
     btst_expiry = get_next_weekday_expiry(1)
@@ -423,10 +402,8 @@ with main_pages[3]:
     </div>
     """, unsafe_allow_html=True)
 
-# --- PAGE 5: HERO-ZERO TRADES ---
 with main_pages[4]:
-    st.markdown("<div style='font-size:11px; font-weight:800; margin-bottom:6px; color:#1E293B;'>🎯 Hero-Zero Expiry Day Special Recommendations (Auto-Synced Dates)</div>", unsafe_allow_html=True)
-    
+    st.markdown("<div style='font-size:11px; font-weight:800; margin-bottom:6px; color:#1E293B;'>🎯 Hero-Zero Expiry Day Special Recommendations</div>", unsafe_allow_html=True)
     nifty_exp = get_next_weekday_expiry(1)  
     bank_exp = get_next_weekday_expiry(2)   
     sensex_exp = get_next_weekday_expiry(3) 
@@ -436,7 +413,6 @@ with main_pages[4]:
         {"index": "BANK NIFTY", "sym": f"BANKNIFTY {int(round(market_data['BANK NIFTY']['price']/100)*100)+200} CE", "expiry": bank_exp, "ltp": round(42.10, 2), "rec": "⚠️ EXPIRED / EXIT", "acc": "89.5%", "sl": "₹8.00", "target": "₹150.00", "budget": "₹10,000"},
         {"index": "SENSEX", "sym": f"SENSEX {int(round(market_data['SENSEX']['price']/100)*100)+300} PE", "expiry": sensex_exp, "ltp": round(24.80, 2), "rec": "HERO-ZERO PUMP", "acc": "87.9%", "sl": "₹5.00", "target": "₹95.00", "budget": "₹7,500"}
     ]
-    
     for hz in hero_zero_list:
         is_ex = "EXPIRED" in hz["rec"]
         c_cls = "analysis-card-alert" if is_ex else "analysis-card"
@@ -455,17 +431,14 @@ with main_pages[4]:
         </div>
         """, unsafe_allow_html=True)
 
-# --- PAGE 6: MUTUAL FUNDS ANALYSIS ---
 with main_pages[5]:
     st.markdown("<div style='font-size:11px; font-weight:800; margin-bottom:6px; color:#1E293B;'>📊 Best Mutual Funds Analysis & Recommendations</div>", unsafe_allow_html=True)
-    mf_data_list = [
+    st.dataframe(pd.DataFrame([
         {"Fund Name & Category": "Quant Small Cap Fund (Small Cap)", "1Y Return": "+38.4%", "3Y CAGR": "+28.2%", "Risk Level": "Very High", "Recommendation": "TOP BUY (SIP)"},
         {"Fund Name & Category": "Nippon India Small Cap Fund (Small Cap)", "1Y Return": "+32.9%", "3Y CAGR": "+25.4%", "Risk Level": "Very High", "Recommendation": "STRONG SIP"},
         {"Fund Name & Category": "Parag Parikh Flexi Cap Fund (Flexi Cap)", "1Y Return": "+24.1%", "3Y CAGR": "+20.5%", "Risk Level": "Moderate", "Recommendation": "CORE HOLD"}
-    ]
-    st.dataframe(pd.DataFrame(mf_data_list), use_container_width=True, hide_index=True)
+    ]), use_container_width=True, hide_index=True)
 
-# --- PAGE 7: GLOBAL MARKETS ---
 with main_pages[6]:
     st.markdown("<div style='font-size:11px; font-weight:800; margin-bottom:6px; color:#1E293B;'>🌍 Global Markets Real-Time Indices Feed</div>", unsafe_allow_html=True)
     global_cols = st.columns(2)
@@ -480,7 +453,6 @@ with main_pages[6]:
             </div>
             """, unsafe_allow_html=True)
 
-# --- PAGE 8: STOCK INDICATORS ---
 with main_pages[7]:
     st.markdown("<div style='font-size:11px; font-weight:800; margin-bottom:6px; color:#1E293B;'>📈 Advanced Indicator Screener</div>", unsafe_allow_html=True)
     st.dataframe(pd.DataFrame([
@@ -488,16 +460,13 @@ with main_pages[7]:
         {"Index / Asset": "BANK NIFTY", "RSI (14)": "65.8 (Strong)", "MACD": "Expansion", "Supertrend": "BUY", "Signal": "STRONG BUY"}
     ]), use_container_width=True, hide_index=True)
 
-# --- PAGE 9: OPTION CHAIN & CHARTS ---
 with main_pages[8]:
     st.markdown(f"<div style='font-size:11px; font-weight:800; margin-bottom:6px; color:#1E293B;'>📊 Nifty Live Option Chain Matrix (Spot: {nifty_price})</div>", unsafe_allow_html=True)
-    chain_df = pd.DataFrame([
+    st.dataframe(pd.DataFrame([
         {"CALL OI": "1.58L", "CALL": "₹154.2", "STRIKE": nifty_strike-50, "PUT": "₹114.3", "PUT OI": "2.22L"},
         {"CALL OI": "1.09L", "CALL": "₹101.7", "STRIKE": nifty_strike, "PUT": "₹162.2", "PUT OI": "69,397"}
-    ])
-    st.dataframe(chain_df, use_container_width=True, hide_index=True)
+    ]), use_container_width=True, hide_index=True)
 
-# --- PAGE 10: WIN RATE TRACKER ---
 with main_pages[9]:
     st.markdown("<div style='font-size:11px; font-weight:800; margin-bottom:6px; color:#1E293B;'>📊 Historical Trade Accuracy & Win Rate Tracker</div>", unsafe_allow_html=True)
     if os.path.isfile("trade_performance.csv"):
@@ -511,7 +480,6 @@ with main_pages[9]:
             st.rerun()
     else:
         st.info("Abhi koi trade data logged nahi hai. App background mein run hone par data collect karegi.")
-        
     if os.path.isfile("trade_performance.csv"):
         if st.button("🗑️ Clear Tracking History"):
             os.remove("trade_performance.csv")
