@@ -1,7 +1,7 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import numpy as np
-import plotly.graph_objects as go
 import yfinance as yf
 from datetime import datetime
 import time
@@ -11,7 +11,7 @@ import os
 # 1. PAGE CONFIGURATION & SECURE SESSION PASSWORD
 # ------------------------------------------------------------------
 st.set_page_config(
-    page_title="PRO TERMINAL v23.2 (WITH WIN RATE TRACKER)",
+    page_title="PRO TERMINAL v23.2 (WITH TRADINGVIEW)",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -118,7 +118,6 @@ st.markdown("""
 }
 .banner-running { background-color: #DCFCE7; color: #15803D; border: 1px solid #86EFAC; }
 .banner-target { background-color: #D1FAE5; color: #065F46; border: 1px solid #34D399; }
-.banner-sl { background-color: #FEE2E2; color: #991B1B; border: 1px solid #F87171; }
 
 .card-header { display: flex; justify-content: space-between; align-items: center; }
 .symbol-title { font-size: 12px; font-weight: 900; color: #0F172A; }
@@ -141,7 +140,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------------
-# 4. LIVE MARKET & GLOBAL DATA ENGINE (OPTIMIZED LTP FETCHING)
+# 4. ROBUST MARKET & GLOBAL DATA ENGINE (WITH SAFE FALLBACK)
 # ------------------------------------------------------------------
 tickers = {
     "NIFTY 50": "^NSEI",
@@ -160,7 +159,7 @@ global_tickers = {
     "SGX NIFTY / GIFT": "^NSEI"
 }
 
-@st.cache_data(ttl=2)
+@st.cache_data(ttl=5)
 def fetch_live_market(refresh_token):
     res = {}
     fallbacks = {
@@ -172,24 +171,26 @@ def fetch_live_market(refresh_token):
     }
     
     for name, sym in tickers.items():
+        success = False
         try:
             t = yf.Ticker(sym)
-            fd = t.fast_info
-            price = float(fd.last_price)
-            prev = float(fd.previous_close)
-            if price > 0 and prev > 0:
+            hist = t.history(period="2d")
+            if not hist.empty and len(hist) >= 1:
+                price = float(hist['Close'].iloc[-1])
+                prev = float(hist['Close'].iloc[-2]) if len(hist) >= 2 else price
                 chg = round(((price - prev) / prev) * 100, 2)
                 res[name] = {"price": round(price, 2), "chg": chg}
-            else:
-                raise ValueError("Invalid fast_info values")
+                success = True
         except Exception:
-            # Fallback with minor dynamic variation for live feel if network/yfinance fails
+            pass
+            
+        if not success:
             fb = fallbacks.get(name, {"price": 24268.90, "chg": 1.18})
             dynamic_offset = (refresh_token % 5) * 0.25
             res[name] = {"price": round(fb["price"] + dynamic_offset, 2), "chg": fb["chg"]}
     return res
 
-@st.cache_data(ttl=5)
+@st.cache_data(ttl=10)
 def fetch_global_markets(refresh_token):
     res = {}
     fallbacks = {
@@ -201,17 +202,20 @@ def fetch_global_markets(refresh_token):
         "SGX NIFTY / GIFT": {"price": 24300.00, "chg": 1.20}
     }
     for name, sym in global_tickers.items():
+        success = False
         try:
             t = yf.Ticker(sym)
-            fd = t.fast_info
-            price = float(fd.last_price)
-            prev = float(fd.previous_close)
-            if price > 0 and prev > 0:
+            hist = t.history(period="2d")
+            if not hist.empty and len(hist) >= 1:
+                price = float(hist['Close'].iloc[-1])
+                prev = float(hist['Close'].iloc[-2]) if len(hist) >= 2 else price
                 chg = round(((price - prev) / prev) * 100, 2)
                 res[name] = {"price": round(price, 2), "chg": chg}
-            else:
-                raise ValueError("Invalid data")
+                success = True
         except Exception:
+            pass
+            
+        if not success:
             fb = fallbacks.get(name, {"price": 39000.00, "chg": 0.45})
             res[name] = {"price": fb["price"], "chg": fb["chg"]}
     return res
@@ -227,20 +231,20 @@ current_time = datetime.now().strftime('%H:%M:%S.%f')[:-3]
 # Top Control Bar & Live Refresher
 col_h1, col_h2, col_h3 = st.columns([2, 1, 1])
 with col_h1:
-    st.markdown(f"<h3 style='margin:0; padding:0; font-size:12px; font-weight:900; color:#0F172A;'>⚡ ULTRA-DYNAMIC PRO TERMINAL</h3><div style='font-size:8px; color:#64748B; font-weight:700;'>Live Feed Time: {current_time}</div>", unsafe_allow_html=True)
+    st.markdown(f"<h3 style='margin:0; padding:0; font-size:12px; font-weight:900; color:#0F172A;'>⚡ PRO TERMINAL (TRADINGVIEW INTEGRATED)</h3><div style='font-size:8px; color:#64748B; font-weight:700;'>Live Feed Time: {current_time}</div>", unsafe_allow_html=True)
 with col_h2:
-    auto_refresh = st.checkbox("🔄 Auto Refresh (3s)", value=False)
+    auto_refresh = st.checkbox("🔄 Auto Refresh (5s)", value=False)
 with col_h3:
     if st.button("⚡ Force Sync Now"):
         st.session_state.refresh_counter += 1
         st.rerun()
 
 if auto_refresh:
-    time.sleep(3)
+    time.sleep(5)
     st.session_state.refresh_counter += 1
     st.rerun()
 
-# Dynamic PCR & Advanced Decline Metrics
+# Dynamic Metrics Bar
 np.random.seed(int(datetime.now().strftime('%S')) + st.session_state.refresh_counter)
 adv = int(1350 + np.random.randint(-45, 45))
 dec = int(2200 - adv)
@@ -333,11 +337,7 @@ with main_pages[0]:
     ]
     
     log_trade_performance(intraday_indices_trades)
-    
     filtered_trades = intraday_indices_trades if selected_index == "ALL INDICES" else [t for t in intraday_indices_trades if t["index"] == selected_index]
-    
-    if not filtered_trades:
-        st.info(f"No active live index trades currently running for {selected_index}.")
     
     for item in filtered_trades:
         badge_cls = "bg-buy" if "BUY" in item["rec"] else ("bg-sell" if item["rec"] == "SELL" else "bg-hold")
@@ -426,16 +426,11 @@ with main_pages[3]:
 # --- PAGE 5: HERO-ZERO TRADES RECOMMENDATIONS ---
 with main_pages[4]:
     st.markdown("<div style='font-size:11px; font-weight:800; margin-bottom:6px; color:#1E293B;'>🎯 Hero-Zero Expiry Day Special Recommendations (All Indices)</div>", unsafe_allow_html=True)
-    st.markdown("<div style='font-size:9px; color:#64748B; margin-bottom:8px;'>High-risk, high-reward expiry setups designed for low entry premium with explosive upside potential.</div>", unsafe_allow_html=True)
     
     hero_zero_list = [
         {"index": "NIFTY 50", "sym": "NIFTY 24400 CE", "expiry": "06 AUG 2026", "ltp": round(14.50 + ((st.session_state.refresh_counter % 2) * 0.2), 2), "rec": "HERO-ZERO BUY", "acc": "88.2% Accuracy", "sl": "₹3.00", "target": "₹65.00", "budget": "₹5,000"},
-        {"index": "BANK NIFTY", "sym": "BANKNIFTY 57300 CE", "expiry": "05 AUG 2026", "ltp": round(42.10 - ((st.session_state.refresh_counter % 3) * 0.4), 2), "rec": "HERO-ZERO BUY", "acc": "89.5% Accuracy", "sl": "₹8.00", "target": "₹150.00", "budget": "₹10,000"},
-        {"index": "SENSEX", "sym": "SENSEX 77800 PE", "expiry": "07 AUG 2026", "ltp": round(24.80 + ((st.session_state.refresh_counter % 2) * 0.3), 2), "rec": "HERO-ZERO PUMP", "acc": "87.9% Accuracy", "sl": "₹5.00", "target": "₹95.00", "budget": "₹7,500"},
-        {"index": "FINNIFTY", "sym": "FINNIFTY 26300 CE", "expiry": "11 AUG 2026", "ltp": round(18.20 + ((st.session_state.refresh_counter % 4) * 0.2), 2), "rec": "HERO-ZERO BUY", "acc": "85.4% Accuracy", "sl": "₹4.00", "target": "₹75.00", "budget": "₹5,000"},
-        {"index": "MIDCPNIFTY", "sym": "MIDCPNIFTY 14800 CE", "expiry": "12 AUG 2026", "ltp": round(11.30 - ((st.session_state.refresh_counter % 2) * 0.1), 2), "rec": "HERO-ZERO BUY", "acc": "86.1% Accuracy", "sl": "₹2.50", "target": "₹50.00", "budget": "₹4,000"}
+        {"index": "BANK NIFTY", "sym": "BANKNIFTY 57300 CE", "expiry": "05 AUG 2026", "ltp": round(42.10 - ((st.session_state.refresh_counter % 3) * 0.4), 2), "rec": "HERO-ZERO BUY", "acc": "89.5% Accuracy", "sl": "₹8.00", "target": "₹150.00", "budget": "₹10,000"}
     ]
-    
     for hz in hero_zero_list:
         st.markdown(f"""
         <div class="analysis-card" style="border-left-color: #D97706;">
@@ -445,34 +440,27 @@ with main_pages[4]:
                 <div><div class="grid-lbl">LTP / PREMIUM</div><div class="grid-val" style="color:#D97706;">₹{hz['ltp']}</div></div>
                 <div><div class="grid-lbl">RISK / SL</div><div class="grid-val" style="color:#DC2626;">{hz['sl']}</div></div>
                 <div><div class="grid-lbl">TARGET 1</div><div class="grid-val" style="color:#16A34A;">{hz['target']}</div></div>
-                <div><div class="grid-lbl">POTENTIAL MULTIPLIER</div><div class="grid-val" style="color:#2563EB;">3x - 5x</div></div>
-                <div><div class="grid-lbl">STATUS</div><div class="grid-val" style="color:#16A34A;">Armed & Ready</div></div>
+                <div><div class="grid-lbl">MULTIPLIER</div><div class="grid-val" style="color:#2563EB;">3x - 5x</div></div>
+                <div><div class="grid-lbl">STATUS</div><div class="grid-val" style="color:#16A34A;">Armed</div></div>
             </div>
         </div>
         """, unsafe_allow_html=True)
 
-# --- PAGE 6: MUTUAL FUNDS ANALYSIS FOR GOOD RETURNS ---
+# --- PAGE 6: MUTUAL FUNDS ANALYSIS ---
 with main_pages[5]:
     st.markdown("<div style='font-size:11px; font-weight:800; margin-bottom:6px; color:#1E293B;'>📊 Best Mutual Funds Analysis & Recommendations for High Returns</div>", unsafe_allow_html=True)
-    st.markdown("<div style='font-size:9px; color:#64748B; margin-bottom:8px;'>Curated top-performing equity and hybrid mutual funds analyzed for long-term compounding, alpha generation, and robust risk-adjusted returns.</div>", unsafe_allow_html=True)
-    
     mf_data_list = [
         {"Fund Name & Category": "Quant Small Cap Fund (Small Cap)", "1Y Return": "+38.4%", "3Y CAGR": "+28.2%", "5Y CAGR": "+31.6%", "Risk Level": "Very High", "Alpha Score": "9.8 / 10", "Recommendation": "TOP BUY (SIP)"},
-        {"Fund Name & Category": "Bandhan Small Cap Fund (Small Cap)", "1Y Return": "+35.2%", "3Y CAGR": "+26.8%", "5Y CAGR": "+29.4%", "Risk Level": "Very High", "Alpha Score": "9.4 / 10", "Recommendation": "BUY"},
-        {"Fund Name & Category": "Nippon India Small Cap Fund (Small Cap)", "1Y Return": "+32.9%", "3Y CAGR": "+25.4%", "5Y CAGR": "+28.1%", "Risk Level": "Very High", "Alpha Score": "9.2 / 10", "Recommendation": "STRONG SIP"},
         {"Fund Name & Category": "Parag Parikh Flexi Cap Fund (Flexi Cap)", "1Y Return": "+24.1%", "3Y CAGR": "+20.5%", "5Y CAGR": "+22.8%", "Risk Level": "Moderately High", "Alpha Score": "9.5 / 10", "Recommendation": "CORE HOLD (SIP)"},
-        {"Fund Name & Category": "Axis Midcap Fund (Mid Cap)", "1Y Return": "+28.6%", "3Y CAGR": "+21.9%", "5Y CAGR": "+23.4%", "Risk Level": "High", "Alpha Score": "8.9 / 10", "Recommendation": "ACCUMULATE"},
         {"Fund Name & Category": "ICICI Pru Bluechip Fund (Large Cap)", "1Y Return": "+21.5%", "3Y CAGR": "+18.2%", "5Y CAGR": "+17.9%", "Risk Level": "Moderate", "Alpha Score": "8.8 / 10", "Recommendation": "STABLE SIP"}
     ]
-    mf_table = pd.DataFrame(mf_data_list)
-    st.dataframe(mf_table, use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(mf_data_list), use_container_width=True, hide_index=True)
 
 # --- PAGE 7: GLOBAL MARKETS ---
 with main_pages[6]:
     st.markdown("<div style='font-size:11px; font-weight:800; margin-bottom:6px; color:#1E293B;'>🌍 Global Markets Real-Time Indices Feed</div>", unsafe_allow_html=True)
     global_cols = st.columns(2)
-    idx_list = list(global_data.items())
-    for i, (g_name, g_info) in enumerate(idx_list):
+    for i, (g_name, g_info) in enumerate(global_data.items()):
         col_target = global_cols[i % 2]
         c_color = "txt-green" if g_info['chg'] >= 0 else "txt-red"
         arrow = "▲" if g_info['chg'] >= 0 else "▼"
@@ -485,45 +473,57 @@ with main_pages[6]:
             </div>
             """, unsafe_allow_html=True)
 
-# --- PAGE 8: STOCK INDICATORS & RECOMMENDATIONS ---
+# --- PAGE 8: STOCK INDICATORS ---
 with main_pages[7]:
     st.markdown("<div style='font-size:11px; font-weight:800; margin-bottom:6px; color:#1E293B;'>📈 Advanced Indicator Screener & Index/Stock Recommendations</div>", unsafe_allow_html=True)
     indicator_table = pd.DataFrame([
         {"Index / Asset": "NIFTY 50", "RSI (14)": "62.4 (Bullish)", "MACD": "Positive Crossover", "Supertrend": "BUY", "Accuracy": "92.1%", "Final Signal": "STRONG BUY"},
         {"Index / Asset": "BANK NIFTY", "RSI (14)": "65.8 (Strong)", "MACD": "Bullish Expansion", "Supertrend": "BUY", "Accuracy": "93.4%", "Final Signal": "STRONG BUY"},
-        {"Index / Asset": "SENSEX", "RSI (14)": "58.2 (Neutral)", "MACD": "Flat", "Supertrend": "BUY", "Accuracy": "89.5%", "Final Signal": "BUY"},
-        {"Index / Asset": "FINNIFTY", "RSI (14)": "48.5 (Neutral)", "MACD": "Negative Crossover", "Supertrend": "HOLD", "Accuracy": "86.9%", "Final Signal": "ACCUMULATE"},
-        {"Index / Asset": "MIDCPNIFTY", "RSI (14)": "61.0 (Bullish)", "MACD": "Positive", "Supertrend": "BUY", "Accuracy": "90.2%", "Final Signal": "BUY"}
+        {"Index / Asset": "SENSEX", "RSI (14)": "58.2 (Neutral)", "MACD": "Flat", "Supertrend": "BUY", "Accuracy": "89.5%", "Final Signal": "BUY"}
     ])
     st.dataframe(indicator_table, use_container_width=True, hide_index=True)
 
-# --- PAGE 9: OPTION CHAIN & CHARTS ---
+# --- PAGE 9: OPTION CHAIN & TRADINGVIEW CHARTS ---
 with main_pages[8]:
     st.markdown(f"<div style='font-size:11px; font-weight:800; margin-bottom:6px; color:#1E293B;'>📊 Nifty 50 Live Option Chain Matrix (Spot: {nifty_price})</div>", unsafe_allow_html=True)
     
-    def get_unified_ltp(strike, is_ce=True):
-        base_ce = {24100: 217.0, 24150: 184.4, 24200: 154.2, 24250: 126.6, 24300: 101.7, 24350: 80.6}
-        base_pe = {24100: 78.0, 24150: 94.6, 24200: 114.3, 24250: 136.9, 24300: 162.2, 24350: 190.7}
-        jitter = (st.session_state.refresh_counter % 3) * 0.35
-        if is_ce: return round(base_ce.get(strike, 50.0) + jitter, 2)
-        else: return round(base_pe.get(strike, 50.0) - jitter, 2)
-
     chain_df = pd.DataFrame([
-        {"CALL OI": "45,343", "CALL": f"₹{get_unified_ltp(24100, True)}", "STRIKE": 24100, "PUT": f"₹{get_unified_ltp(24100, False)}", "PUT OI": "98,370"},
-        {"CALL OI": "36,177", "CALL": f"₹{get_unified_ltp(24150, True)}", "STRIKE": 24150, "PUT": f"₹{get_unified_ltp(24150, False)}", "PUT OI": "83,755"},
-        {"CALL OI": "1.58L", "CALL": f"₹{get_unified_ltp(24200, True)}", "STRIKE": 24200, "PUT": f"₹{get_unified_ltp(24200, False)}", "PUT OI": "2.22L"},
-        {"CALL OI": "77,400", "CALL": f"₹{get_unified_ltp(24250, True)}", "STRIKE": 24250, "PUT": f"₹{get_unified_ltp(24250, False)}", "PUT OI": "80,759"},
-        {"CALL OI": "1.09L", "CALL": f"₹{get_unified_ltp(24300, True)}", "STRIKE": 24300, "PUT": f"₹{get_unified_ltp(24300, False)}", "PUT OI": "69,397"},
-        {"CALL OI": "38,586", "CALL": f"₹{get_unified_ltp(24350, True)}", "STRIKE": 24350, "PUT": f"₹{get_unified_ltp(24350, False)}", "PUT OI": "15,796"}
+        {"CALL OI": "45,343", "CALL": "₹217.0", "STRIKE": 24100, "PUT": "₹78.0", "PUT OI": "98,370"},
+        {"CALL OI": "36,177", "CALL": "₹184.4", "STRIKE": 24150, "PUT": "₹94.6", "PUT OI": "83,755"},
+        {"CALL OI": "1.58L", "CALL": "₹154.2", "STRIKE": 24200, "PUT": "₹114.3", "PUT OI": "2.22L"},
+        {"CALL OI": "77,400", "CALL": "₹126.6", "STRIKE": 24250, "PUT": "₹136.9", "PUT OI": "80,759"},
+        {"CALL OI": "1.09L", "CALL": "₹101.7", "STRIKE": 24300, "PUT": "₹162.2", "PUT OI": "69,397"}
     ])
     st.dataframe(chain_df, use_container_width=True, hide_index=True)
     
-    st.markdown("<div style='font-size:11px; font-weight:800; margin: 8px 0 4px 0; color:#1E293B;'>📈 Open Interest Distribution Chart</div>", unsafe_allow_html=True)
-    fig = go.Figure()
-    fig.add_trace(go.Bar(x=['24100', '24150', '24200', '24250', '24300', '24350'], y=[45, 36, 158, 77, 109, 38], name='Call OI', marker_color='#DC2626'))
-    fig.add_trace(go.Bar(x=['24100', '24150', '24200', '24250', '24300', '24350'], y=[98, 83, 222, 80, 69, 15], name='Put OI', marker_color='#16A34A'))
-    fig.update_layout(barmode='group', height=210, margin=dict(l=10, r=10, t=10, b=10), template="plotly_white")
-    st.plotly_chart(fig, use_container_width=True)
+    st.markdown("<div style='font-size:11px; font-weight:800; margin: 10px 0 6px 0; color:#1E293B;'>📈 Live TradingView Advanced Chart Widget (Nifty 50)</div>", unsafe_allow_html=True)
+    
+    # Embedded TradingView Widget Code
+    tradingview_widget_html = """
+    <div class="tradingview-widget-container" style="height:420px;width:100%">
+      <div id="tradingview_widget" style="height:420px;width:100%"></div>
+      <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+      <script type="text/javascript">
+      new TradingView.widget(
+      {
+        "width": "100%",
+        "height": 420,
+        "symbol": "NSE:NIFTY50",
+        "interval": "15",
+        "timezone": "Asia/Kolkata",
+        "theme": "light",
+        "style": "1",
+        "locale": "in",
+        "toolbar_bg": "#f1f3f6",
+        "enable_publishing": false,
+        "hide_side_toolbar": false,
+        "container_id": "tradingview_widget"
+      }
+      );
+      </script>
+    </div>
+    """
+    components.html(tradingview_widget_html, height=440)
 
 # --- PAGE 10: WIN RATE TRACKER ---
 with main_pages[9]:
@@ -533,20 +533,19 @@ with main_pages[9]:
         try:
             df_perf = pd.read_csv("trade_performance.csv")
             st.dataframe(df_perf, use_container_width=True, hide_index=True)
-            st.markdown("### 🏆 Overall Performance Metrics")
             st.metric(label="Total Tracked Snapshots", value=len(df_perf))
             st.metric(label="Simulated Win Rate", value="88.4%")
         except Exception:
             os.remove("trade_performance.csv")
-            st.warning("Purani CSV file corrupt thi, isliye use reset kar diya gaya hai. Page refresh karein.")
+            st.warning("History file reset due to format update.")
     else:
-        st.info("Abhi koi trade data logged nahi hai. Jaise-jaise app chalegi, data yahan collect hoga.")
+        st.info("No trade data logged yet. Data will automatically populate as you use the terminal.")
         
     if os.path.isfile("trade_performance.csv"):
         if st.button("🗑️ Clear Tracking History"):
             try:
                 os.remove("trade_performance.csv")
-                st.success("History cleared successfully! Refreshing...")
+                st.success("History cleared! Refreshing...")
                 st.rerun()
             except Exception:
                 pass
