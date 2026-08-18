@@ -8,7 +8,7 @@ import time
 import os
 
 # ------------------------------------------------------------------
-# 1. PAGE CONFIGURATION & SECURE SESSION PASSWORD
+# 1. PAGE CONFIGURATION & SECURE SESSION PASSWORDs
 # ------------------------------------------------------------------
 st.set_page_config(
     page_title="PRO TERMINAL v23.2 (WITH TRADINGVIEW)",
